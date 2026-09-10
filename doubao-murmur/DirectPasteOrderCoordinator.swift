@@ -23,9 +23,8 @@ enum DirectPasteCancellationReason: String, Equatable {
 enum DirectPasteLifecycleEvent: String, Equatable {
     case focusReady = "focus_ready"
     case inputSourceReady = "input_source_ready"
-    case functionKeyDownPosted = "fn_down_posted"
+    case rightCommandStartTapCompleted = "right_command_start_tap_completed"
     case markedTextStarted = "marked_text_started"
-    case functionKeyUpPosted = "fn_up_posted"
     case markedTextCommitted = "marked_text_committed"
     case finalTextLocked = "final_text_locked"
 }

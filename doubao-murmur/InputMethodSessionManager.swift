@@ -358,6 +358,7 @@ final class InputMethodSessionManager {
         appState.errorMessage = nil
         appState.recordingState = .starting
         hotkeyManager.setEscapeHandlingEnabled(true)
+        hotkeyManager.setStopComboMonitoringEnabled(true)
         // Both readiness paths start immediately on the main actor. AppKit and
         // Text Input Services stay on their required thread; neither path waits
         // for a fixed delay or assumes the other has completed first.
@@ -401,7 +402,7 @@ final class InputMethodSessionManager {
                 )
                 return
             }
-            self.recordDirectLifecycleEvent(.functionKeyDownPosted)
+            self.recordDirectLifecycleEvent(.rightCommandStartTapCompleted)
             self.phase = .recording
             self.appState.recordingState = .recording
             self.logSessionEvent("right_command_start_completed", focusStatus: self.overlayPanel.textInputFocusStatus)
@@ -414,6 +415,34 @@ final class InputMethodSessionManager {
 
         guard physicalRightCommandStopGate.observePhysicalRightCommandDown() == .startedStopping else { return }
         logSessionEvent("physical_right_command_stop_down", focusStatus: overlayPanel.textInputFocusStatus)
+        beginStoppingAfterPhysicalRightCommandDown()
+    }
+
+    /// Newer Doubao builds consume the physical right Command key-down before
+    /// any event tap can observe it; only the key-up still arrives. An
+    /// orphaned key-up during recording therefore IS the stop gesture: replay
+    /// the down into the stop gate, start stopping, then deliver the up.
+    private func handlePhysicalRightCommandStopUp() {
+        switch phase {
+        case .stopping:
+            logSessionEvent("physical_right_command_stop_up", focusStatus: overlayPanel.textInputFocusStatus)
+            applyPhysicalRightCommandStopAction(
+                physicalRightCommandStopGate.observePhysicalRightCommandUp()
+            )
+        case .recording:
+            logSessionEvent("physical_right_command_stop_up_without_down", focusStatus: overlayPanel.textInputFocusStatus)
+            guard physicalRightCommandStopGate.observePhysicalRightCommandDown() == .startedStopping else { return }
+            beginStoppingAfterPhysicalRightCommandDown()
+            guard phase == .stopping else { return }
+            applyPhysicalRightCommandStopAction(
+                physicalRightCommandStopGate.observePhysicalRightCommandUp()
+            )
+        case .idle, .preparing:
+            return
+        }
+    }
+
+    private func beginStoppingAfterPhysicalRightCommandDown() {
         let focusStatus = overlayPanel.ensureTextInputFocus()
         logSessionEvent("pre_physical_right_command_stop_focus_checked", focusStatus: focusStatus)
         guard focusStatus.isConfirmed else {
@@ -427,6 +456,9 @@ final class InputMethodSessionManager {
         phase = .stopping
         appState.recordingState = .stopping
         beginStoppingSafetyMonitoring()
+        // Doubao may commit marked text on the key-down or only after the
+        // key-up. beginStopping already treats "marked text gone before
+        // stopping began" as committed, so both timings converge here.
         handleMarkedTextAction(
             markedTextCommitGate.beginStopping(
                 currentlyHasMarkedText: overlayPanel.hasMarkedText
@@ -434,19 +466,23 @@ final class InputMethodSessionManager {
         )
     }
 
-    private func handlePhysicalRightCommandStopUp() {
-        guard phase == .stopping else { return }
-        logSessionEvent("physical_right_command_stop_up", focusStatus: overlayPanel.textInputFocusStatus)
-        applyPhysicalRightCommandStopAction(
-            physicalRightCommandStopGate.observePhysicalRightCommandUp()
-        )
-    }
-
     private func handlePhysicalRightCommandStopInterruptedByOrdinaryKey() {
-        guard phase == .stopping else { return }
-        applyPhysicalRightCommandStopAction(
-            physicalRightCommandStopGate.observeOrdinaryKeyDown()
-        )
+        switch phase {
+        case .stopping:
+            applyPhysicalRightCommandStopAction(
+                physicalRightCommandStopGate.observeOrdinaryKeyDown()
+            )
+        case .recording:
+            // The right Command key-down is no longer observable, but the
+            // ordinary key of a Command combo still arrives with maskCommand
+            // set. A combo during recording is never the stop gesture.
+            cancelSession(
+                message: "录音期间检测到 Command 组合键；已安全取消，未复制或粘贴文字",
+                reason: .sessionCancelled
+            )
+        case .idle, .preparing:
+            return
+        }
     }
 
     private func handleMarkedTextStateChanged(_ hasMarkedText: Bool) {
@@ -799,6 +835,7 @@ final class InputMethodSessionManager {
         }
         phase = .idle
         hotkeyManager.setEscapeHandlingEnabled(false)
+        hotkeyManager.setStopComboMonitoringEnabled(false)
         overlayPanel.hideOverlay()
         inputSourceManager.restorePreviousInputSource()
         overlayPanel.clearText()

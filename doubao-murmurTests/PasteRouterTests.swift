@@ -465,6 +465,44 @@ final class PhysicalRightCommandStopGateTests: XCTestCase {
         )
     }
 
+    func testCommandComboKeyDownStaysVisibleWhenRightCommandDownIsConsumed() {
+        XCTAssertTrue(
+            PhysicalRightCommandEventFilter.isCommandComboKeyDown(
+                type: .keyDown,
+                keyCode: 9, // kVK_ANSI_V
+                sourcePID: 0,
+                flags: [.maskCommand]
+            )
+        )
+        // A bare ordinary key without the Command modifier is not a combo.
+        XCTAssertFalse(
+            PhysicalRightCommandEventFilter.isCommandComboKeyDown(
+                type: .keyDown,
+                keyCode: 9,
+                sourcePID: 0,
+                flags: []
+            )
+        )
+        // The right Command key itself never counts as the combo's ordinary key.
+        XCTAssertFalse(
+            PhysicalRightCommandEventFilter.isCommandComboKeyDown(
+                type: .keyDown,
+                keyCode: 54,
+                sourcePID: 0,
+                flags: [.maskCommand]
+            )
+        )
+        // Synthetic events (including our own paste) are not physical combos.
+        XCTAssertFalse(
+            PhysicalRightCommandEventFilter.isCommandComboKeyDown(
+                type: .keyDown,
+                keyCode: 9,
+                sourcePID: 12345,
+                flags: [.maskCommand]
+            )
+        )
+    }
+
     func testMarkedCommitWithoutPhysicalCommandUpCannotAuthorizeFinalLock() {
         var gate = PhysicalRightCommandStopGate()
         XCTAssertEqual(gate.markMarkedTextCommitted(), .none)
@@ -595,9 +633,8 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         let events: [DirectPasteLifecycleEvent] = [
             .focusReady,
             .inputSourceReady,
-            .functionKeyDownPosted,
+            .rightCommandStartTapCompleted,
             .markedTextStarted,
-            .functionKeyUpPosted,
             .markedTextCommitted,
             .finalTextLocked
         ]

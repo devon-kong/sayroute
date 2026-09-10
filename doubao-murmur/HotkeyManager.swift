@@ -64,6 +64,18 @@ enum PhysicalRightCommandEventFilter {
     ) -> Bool {
         type == .keyDown && keyCode != 54 && sourcePID == 0
     }
+
+    /// The ordinary key of a Command combo stays visible even when the input
+    /// method consumes the physical right Command key-down itself.
+    static func isCommandComboKeyDown(
+        type: CGEventType,
+        keyCode: Int64,
+        sourcePID: Int64,
+        flags: CGEventFlags
+    ) -> Bool {
+        isPhysicalOrdinaryKeyDown(type: type, keyCode: keyCode, sourcePID: sourcePID)
+            && flags.contains(.maskCommand)
+    }
 }
 
 class HotkeyManager {
@@ -89,6 +101,7 @@ class HotkeyManager {
     private var lastToggleTime: TimeInterval = 0
     private let debounceInterval: TimeInterval = 0.3
     private var shouldConsumeEscape = false
+    private var stopComboMonitoringEnabled = false
     private var stopHotkeyReleaseGate = StopHotkeyReleaseGate()
     private var physicalRightCommandIsDown = false
 
@@ -219,6 +232,13 @@ class HotkeyManager {
         logger.notice("ESC handling enabled: \(isEnabled)")
     }
 
+    /// Command-combo interruption only matters while a session can be stopped
+    /// by it. Without this gate every ⌘+keypress system-wide would surface as
+    /// an interruption event.
+    func setStopComboMonitoringEnabled(_ isEnabled: Bool) {
+        stopComboMonitoringEnabled = isEnabled
+    }
+
     func beginStopHotkeyReleaseTracking() {
         guard stopHotkeyReleaseGate.begin() else { return }
         logger.notice("event=toggle_hotkey_pressed")
@@ -344,12 +364,19 @@ class HotkeyManager {
                 functionKeyDiagnosticsLogger.notice("event=physical_right_command_stop_up")
                 onHotkeyEvent?(.physicalRightCommandStopUp)
             }
-        } else if physicalRightCommandIsDown,
-                  PhysicalRightCommandEventFilter.isPhysicalOrdinaryKeyDown(
+        } else if PhysicalRightCommandEventFilter.isPhysicalOrdinaryKeyDown(
                       type: type,
                       keyCode: keyCode,
                       sourcePID: sourcePID
-                  ) {
+                  ),
+                  physicalRightCommandIsDown
+                      || (stopComboMonitoringEnabled
+                          && PhysicalRightCommandEventFilter.isCommandComboKeyDown(
+                              type: type,
+                              keyCode: keyCode,
+                              sourcePID: sourcePID,
+                              flags: event.flags
+                          )) {
             functionKeyDiagnosticsLogger.notice(
                 "event=physical_right_command_stop_interrupted keyCode=\(keyCode, privacy: .public)"
             )

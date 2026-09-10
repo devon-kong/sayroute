@@ -54,7 +54,16 @@ class OverlayPanel: NSPanel {
         self.level = .floating
         self.isOpaque = false
         self.backgroundColor = .clear
+        // The SwiftUI material is backed by an NSVisualEffectView whose blur
+        // bleeds past the rounded card as faint square corners in a
+        // transparent borderless window. Clip the window's content layer to
+        // the card's corners; the window shadow then follows the rounded
+        // opaque region on its own.
         self.hasShadow = true
+        contentView?.wantsLayer = true
+        contentView?.layer?.cornerRadius = 16
+        contentView?.layer?.masksToBounds = true
+        contentView?.layer?.backgroundColor = .clear
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.isMovableByWindowBackground = true
         self.hidesOnDeactivate = false

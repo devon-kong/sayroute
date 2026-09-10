@@ -18,15 +18,14 @@ struct OverlayView: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .circular)
                 .fill(.ultraThinMaterial)
                 .opacity(0.6)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .circular)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
-        .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
     }
 }
 
