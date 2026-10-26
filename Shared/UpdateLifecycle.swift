@@ -14,7 +14,7 @@ struct UpdatePlan: Codable {
 
     func validatePaths() throws {
         guard parentPID > 1, target.isFileURL, incoming.isFileURL,
-              UUID(uuidString: String(stage.lastPathComponent.dropFirst(".murmur-update-".count))) == nonce else {
+              UUID(uuidString: String(stage.lastPathComponent.dropFirst(".sayroute-update-".count))) == nonce else {
             throw SafeUpdateError.unsafePath
         }
         try UpdatePaths.validate(target: target, incoming: incoming)
@@ -43,13 +43,13 @@ struct UpdateLaunchReceipt: Codable {
 enum UpdateStartupReceipt {
     @discardableResult
     static func writeIfRequested(arguments: [String] = CommandLine.arguments, bundle: Bundle = .main) -> Bool {
-        guard let index = arguments.firstIndex(of: "--murmur-update-stage"), index + 1 < arguments.count,
-              let tokenIndex = arguments.firstIndex(of: "--murmur-update-nonce"), tokenIndex + 1 < arguments.count,
+        guard let index = arguments.firstIndex(of: "--sayroute-update-stage"), index + 1 < arguments.count,
+              let tokenIndex = arguments.firstIndex(of: "--sayroute-update-nonce"), tokenIndex + 1 < arguments.count,
               let nonce = UUID(uuidString: arguments[tokenIndex + 1]) else { return false }
         let stage = URL(fileURLWithPath: arguments[index + 1], isDirectory: true)
         do {
             try UpdatePaths.requireNoSymlinks(stage)
-            guard stage.lastPathComponent == ".murmur-update-" + nonce.uuidString,
+            guard stage.lastPathComponent == ".sayroute-update-" + nonce.uuidString,
                   stage.deletingLastPathComponent().standardizedFileURL.path == bundle.bundleURL.deletingLastPathComponent().standardizedFileURL.path else { return false }
             let plan = try JSONDecoder().decode(UpdatePlan.self, from: Data(contentsOf: stage.appendingPathComponent("plan.json")))
             try plan.validatePaths()
@@ -73,7 +73,7 @@ enum UpdatePreparation {
               size <= UpdateArchive.maximumArchiveBytes else { throw SafeUpdateError.unsafeArchive }
         let root = try UpdateArchive.applicationRoot(in: Data(contentsOf: archive))
         let fm = FileManager.default, nonce = UUID()
-        let stage = currentApp.deletingLastPathComponent().appendingPathComponent(".murmur-update-" + nonce.uuidString)
+        let stage = currentApp.deletingLastPathComponent().appendingPathComponent(".sayroute-update-" + nonce.uuidString)
         try fm.createDirectory(at: stage, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         var prepared = false
         defer { if !prepared { try? fm.removeItem(at: stage) } }
@@ -92,7 +92,7 @@ enum UpdatePreparation {
         let plan = UpdatePlan(nonce: nonce, parentPID: parentPID, target: currentApp, incoming: incoming, current: current, candidate: candidate)
         try plan.validatePackages()
         // Copy the already signed installer out of the bundle before swapping it.
-        try fm.copyItem(at: currentApp.appendingPathComponent("Contents/Helpers/murmur-updater"), to: stage.appendingPathComponent("installer"))
+        try fm.copyItem(at: currentApp.appendingPathComponent("Contents/Helpers/sayroute-updater"), to: stage.appendingPathComponent("installer"))
         try JSONEncoder().encode(plan).write(to: stage.appendingPathComponent("plan.json"), options: .atomic)
         prepared = true
         return plan
@@ -115,7 +115,7 @@ enum UpdateRunner {
         let result = try UpdateSwapTransaction.run(target: plan.target, incoming: plan.incoming,
             validate: { try plan.validatePackages() }, launch: {
                 running = try NSWorkspace.shared.launchApplication(at: plan.target, options: [.newInstance], configuration: [
-                    .arguments: ["--murmur-update-stage", plan.stage.path, "--murmur-update-nonce", plan.nonce.uuidString]
+                    .arguments: ["--sayroute-update-stage", plan.stage.path, "--sayroute-update-nonce", plan.nonce.uuidString]
                 ])
                 guard let pid = running?.processIdentifier else { throw SafeUpdateError.startupFailed }
                 return pid

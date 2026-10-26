@@ -96,7 +96,7 @@ final class PasteOrderEventLogger {
         self.databaseURL = databaseURL
         self.processInstanceId = processInstanceId
         self.maximumRows = max(100, maximumRows)
-        queue = DispatchQueue(label: "com.doubao.murmur.paste-order-events.\(side)", qos: .utility)
+        queue = DispatchQueue(label: "com.devonkong.sayroute.paste-order-events.\(side)", qos: .utility)
         queue.setSpecific(key: Self.queueKey, value: queueIdentifier)
         queue.async { self.openAndPrepareDatabase() }
     }
@@ -104,7 +104,7 @@ final class PasteOrderEventLogger {
     static func defaultDatabaseURL(side: String) -> URL {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return support
-            .appendingPathComponent("Doubao Murmur", isDirectory: true)
+            .appendingPathComponent("SayRoute", isDirectory: true)
             .appendingPathComponent("paste-orders-\(side).sqlite3")
     }
 

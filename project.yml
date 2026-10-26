@@ -1,6 +1,6 @@
-name: doubao-murmur
+name: SayRoute
 options:
-  bundleIdPrefix: com.doubao
+  bundleIdPrefix: com.devonkong
   deploymentTarget:
     macOS: "13.0"
   xcodeVersion: "15.4"
@@ -8,81 +8,85 @@ options:
 
 settings:
   base:
-    PRODUCT_BUNDLE_IDENTIFIER: com.doubao.murmur
-    MARKETING_VERSION: "1.3.1"
-    CURRENT_PROJECT_VERSION: "20"
+    PRODUCT_BUNDLE_IDENTIFIER: com.devonkong.sayroute
+    MARKETING_VERSION: "1.4.0"
+    CURRENT_PROJECT_VERSION: "21"
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
 
 targets:
-  doubao-murmur:
+  SayRoute:
     type: application
     platform: macOS
     sources:
-      - path: doubao-murmur
+      - path: SayRoute
         excludes:
           - "*.md"
       - path: Shared
+      - path: LICENSE
+        buildPhase: resources
+      - path: ATTRIBUTION.md
+        buildPhase: resources
     dependencies:
       - sdk: libsqlite3.tbd
-      - target: murmur-updater
+      - target: sayroute-updater
         embed: false
     postBuildScripts:
       - name: Embed verified update helper
         script: |
           mkdir -p "$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers"
-          cp "$BUILT_PRODUCTS_DIR/murmur-updater" "$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers/murmur-updater"
+          cp "$BUILT_PRODUCTS_DIR/sayroute-updater" "$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers/sayroute-updater"
         inputFiles:
-          - "$(BUILT_PRODUCTS_DIR)/murmur-updater"
+          - "$(BUILT_PRODUCTS_DIR)/sayroute-updater"
         outputFiles:
-          - "$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/murmur-updater"
+          - "$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/sayroute-updater"
     settings:
       base:
-        INFOPLIST_FILE: doubao-murmur/Info.plist
-        CODE_SIGN_ENTITLEMENTS: doubao-murmur/doubao-murmur.entitlements
+        INFOPLIST_FILE: SayRoute/Info.plist
+        CODE_SIGN_ENTITLEMENTS: SayRoute/SayRoute.entitlements
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
-        PRODUCT_NAME: "Doubao Murmur"
+        PRODUCT_NAME: "SayRoute"
         COMBINE_HIDPI_IMAGES: true
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         LD_RUNPATH_SEARCH_PATHS:
           - "@executable_path/../Frameworks"
     info:
-      path: doubao-murmur/Info.plist
+      path: SayRoute/Info.plist
       properties:
         LSUIElement: true
-        NSMicrophoneUsageDescription: "Doubao Murmur needs microphone access to enable voice-to-text transcription."
-        CFBundleName: "Doubao Murmur"
-        CFBundleDisplayName: "Doubao Murmur"
+        NSMicrophoneUsageDescription: "SayRoute needs microphone access to enable voice-to-text transcription."
+        CFBundleName: "SayRoute"
+        CFBundleDisplayName: "SayRoute"
         CFBundleIconFile: "AppIcon"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
     entitlements:
-      path: doubao-murmur/doubao-murmur.entitlements
+      path: SayRoute/SayRoute.entitlements
       properties:
         com.apple.security.app-sandbox: false
     scheme:
       testTargets:
-        - doubao-murmurTests
+        - SayRouteTests
 
-  doubao-murmurTests:
+  SayRouteTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: doubao-murmurTests
+      - path: SayRouteTests
     dependencies:
-      - target: doubao-murmur
+      - target: SayRoute
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Doubao Murmur.app/Contents/MacOS/Doubao Murmur"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SayRoute.app/Contents/MacOS/SayRoute"
         BUNDLE_LOADER: "$(TEST_HOST)"
 
-  murmur-mirror:
+  sayroute-bridge:
     type: tool
     platform: macOS
     sources:
-      - path: murmur-mirror
+      - path: sayroute-bridge
       - path: Shared
         excludes:
           - "Update*.swift"
@@ -90,22 +94,22 @@ targets:
       - sdk: libsqlite3.tbd
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.doubao.murmur.mirror
-        PRODUCT_NAME: murmur-mirror
+        PRODUCT_BUNDLE_IDENTIFIER: com.devonkong.sayroute.bridge
+        PRODUCT_NAME: sayroute-bridge
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
 
-  murmur-updater:
+  sayroute-updater:
     type: tool
     platform: macOS
     sources:
-      - path: murmur-updater
+      - path: sayroute-updater
       - path: Shared
         includes:
           - "Update*.swift"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.doubao.murmur.updater
-        PRODUCT_NAME: murmur-updater
+        PRODUCT_BUNDLE_IDENTIFIER: com.devonkong.sayroute.updater
+        PRODUCT_NAME: sayroute-updater
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual

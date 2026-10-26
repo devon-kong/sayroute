@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tail logs from running Doubao Murmur process via unified logging
+# Tail logs from running SayRoute process via unified logging
 # Usage: ./scripts/logs.sh [filter]
 # Examples:
 #   ./scripts/logs.sh              # all app logs
@@ -10,9 +10,9 @@ cd "$(dirname "$0")/.."
 
 FILTER="${1:-}"
 
-if pgrep -x "Doubao Murmur" > /dev/null 2>&1; then
-  PID=$(pgrep -x "Doubao Murmur")
-  echo "📋 Tailing logs for Doubao Murmur (PID: $PID)"
+if pgrep -x "SayRoute" > /dev/null 2>&1; then
+  PID=$(pgrep -x "SayRoute")
+  echo "📋 Tailing logs for SayRoute (PID: $PID)"
   if [ -n "$FILTER" ]; then
     echo "   Filter: $FILTER"
   fi
@@ -25,6 +25,6 @@ if pgrep -x "Doubao Murmur" > /dev/null 2>&1; then
     log stream --process "$PID" --style compact 2>/dev/null
   fi
 else
-  echo "⚠️  Doubao Murmur is not running."
+  echo "⚠️  SayRoute is not running."
   echo "   Start it with: ./scripts/run.sh or ./scripts/dev.sh"
 fi

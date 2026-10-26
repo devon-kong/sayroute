@@ -1,25 +1,15 @@
-# Doubao Murmur v1.3.1
+# SayRoute 1.4.0 — migration candidate
 
-正式版：控制端 **1.3.1 (20)**，Mirror **1.3.1 (19)**。应用显示名、可执行文件为 **Doubao Murmur**，bundle ID为 `com.doubao.murmur`。
+SayRoute renames the macOS dictation companion previously called Doubao Murmur. Controller: **1.4.0 (21)**. SayRoute Bridge: **1.4.0 (20)**. This is a candidate until [acceptance](sayroute-acceptance.md) is complete.
 
-## 本版变化
+- New app, bundle, bridge/updater identities and selected monochrome brand mark.
+- One-time validated import of three preferences; old data is retained for rollback.
+- Prevent competing app hotkey listeners; explain that session-only encrypted drafts must be copied before quitting.
+- Bridge installation backs up previous state, retires the legacy LaunchAgent, validates the new listener and rolls back failures. Explicit rollback is included.
+- English-first README and Chinese counterpart, with preserved MIT attribution and an explicit installed-Doubao-IME requirement.
 
-- 长文输入等待输入法明确提交后再投递；超时或发送失败时保留可恢复文字。
-- “最近文字与恢复”按需从加密临时文件读取，最多3天，退出后不恢复。打开记录清除已有失败提醒，记录及失败状态仍保留。
-- Mirror在发送前准备完整粘贴按键对，避免Command状态污染抬键，修正后续Delete删除整行、空格触发搜索的问题。
-- 输入框默认在鼠标附近显示，可选屏幕上方。边缘避让、会话位置固定、失败提示位置一致。
-- 更新增加来源/身份/归档校验、原子替换和启动失败回退。当前ad-hoc签名包需要手动安装。
+The dictation/commit/paste state machine remains the same. No new ASR provider, authentication, notarization or cross-session draft recovery is claimed. Packages are ad-hoc signed and need manual installation and fresh Accessibility grants.
 
-## 安装
+Read the [migration guide](sayroute-migration.md) before replacing the old application or installing the bridge. Old releases remain historical and retain their original filenames. Candidate packages are not stable-release artifacts.
 
-控制端下载 `Doubao-Murmur-v1.3.1.zip`，解压后把 `Doubao Murmur.app` 放入“应用程序”。从测试版迁移时先退出测试版，再启动正式版，检查正式版的辅助功能授权和菜单偏好。
-
-被控端下载 `murmur-mirror-mac-mini-v1.3.1-build19.zip`，解压后运行 `install.command`；已安装Mirror build19无需重装。验证方法见[安装说明](../packaging/murmur-mirror/README.md)。
-
-## 验证与边界
-
-用户已反馈长文输入、Command/Delete及本版输入框功能符合预期，并确认转为正式版。回归套件覆盖124项逻辑/协议/存储/按键构造/更新安全/布局测试；正式包另做双架构构建、签名与归档校验，CI记录对应发布提交。
-
-这些检查不保证所有系统缩放倍率、多显示器、输入法及目标编辑器组合都已验收。投递ACK只代表按键事件已发送，不代表目标应用已消费文字。Mirror仅供可信本机loopback与UU映射使用，接口尚无认证和远端目标绑定，请勿开放到局域网或公网。
-
-包为ad-hoc签名，未Apple公证；手动安装和系统权限操作由用户完成。应用名改为正式名称不等于获得Developer ID签名或公证。
+中文：本版是完整品牌迁移候选，不代表真实双机验收已完成。旧配置保留；新应用和 Bridge 需重新授权；退出前先复制需要保留的恢复文字。详见迁移与验收文档。

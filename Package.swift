@@ -3,25 +3,25 @@ import PackageDescription
 import Foundation
 
 let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-let generatedDirectories = ["build", "build-tests", "dist", "doubao-murmur.xcodeproj"].filter {
+let generatedDirectories = ["build", "build-tests", "dist", "SayRoute.xcodeproj"].filter {
     FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent($0).path)
 }
 
 // Hostless tests never launch AppDelegate, global hotkeys or the helper.
 let package = Package(
-    name: "MurmurCore",
+    name: "SayRouteCore",
     platforms: [.macOS(.v13)],
-    products: [.library(name: "Doubao_Murmur", targets: ["Doubao_Murmur"])],
+    products: [.library(name: "SayRoute", targets: ["SayRoute"])],
     targets: [
         .target(
-            name: "Doubao_Murmur", path: ".",
-            exclude: ["doubao-murmur/DoubaoMurmurApp.swift", "doubao-murmur/Info.plist",
-                      "doubao-murmur/doubao-murmur.entitlements", "doubao-murmur/Resources",
-                      "doubao-murmurTests", "docs", "scripts", "packaging",
-                      "murmur-mirror", "murmur-updater", "README.md", "LICENSE", "project.yml"] + generatedDirectories,
-            sources: ["doubao-murmur", "Shared"],
+            name: "SayRoute", path: ".",
+            exclude: ["SayRoute/SayRouteApp.swift", "SayRoute/Info.plist",
+                      "SayRoute/SayRoute.entitlements", "SayRoute/Resources",
+                      "SayRouteTests", "docs", "scripts", "packaging",
+                      "sayroute-bridge", "sayroute-updater", "README.md", "README.zh-CN.md", "ATTRIBUTION.md", "LICENSE", "project.yml"] + generatedDirectories,
+            sources: ["SayRoute", "Shared"],
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
-        .testTarget(name: "MurmurTests", dependencies: ["Doubao_Murmur"], path: "doubao-murmurTests")
+        .testTarget(name: "SayRouteTests", dependencies: ["SayRoute"], path: "SayRouteTests")
     ]
 )

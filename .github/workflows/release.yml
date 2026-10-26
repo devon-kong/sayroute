@@ -20,12 +20,14 @@ jobs:
         run: brew install xcodegen
       - name: Run hostless regression tests
         run: swift test
+      - name: Exercise bridge installer transactions
+        run: python3 scripts/test-bridge-installer.py
       - name: Build and verify universal controller
         env:
           RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
         run: scripts/package-app.sh
-      - name: Build and verify universal Mirror
-        run: scripts/package-murmur-mirror.sh
+      - name: Build and verify universal SayRoute Bridge
+        run: scripts/package-sayroute-bridge.sh
       - name: Preserve validated packages
         uses: actions/upload-artifact@v4
         with:

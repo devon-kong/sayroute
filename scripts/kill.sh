@@ -1,7 +1,7 @@
 #!/bin/bash
-# Kill running Doubao Murmur instance
-if pkill -x "Doubao Murmur" 2>/dev/null; then
-  echo "🛑 Doubao Murmur stopped"
+# Kill running SayRoute instance
+if pkill -x "SayRoute" 2>/dev/null; then
+  echo "🛑 SayRoute stopped"
 else
-  echo "ℹ️  Doubao Murmur is not running"
+  echo "ℹ️  SayRoute is not running"
 fi

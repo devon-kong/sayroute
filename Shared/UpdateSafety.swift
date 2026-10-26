@@ -44,7 +44,7 @@ enum UpdatePolicy {
         return false
     }
     static func requireTrustedRelease(_ identity: UpdateIdentity) throws {
-        guard identity.bundleID == "com.doubao.murmur", let team = identity.teamID,
+        guard identity.bundleID == "com.devonkong.sayroute", let team = identity.teamID,
               team.count == 10, team.allSatisfy({ $0.isASCII && ($0.isUppercase || $0.isNumber) }) else {
             throw SafeUpdateError.manualInstallationRequired
         }
@@ -102,7 +102,7 @@ enum UpdatePaths {
         let stage = incoming.deletingLastPathComponent()
         guard target.pathExtension == "app", incoming.pathExtension == "app",
               target.lastPathComponent == incoming.lastPathComponent,
-              stage.lastPathComponent.hasPrefix(".murmur-update-"),
+              stage.lastPathComponent.hasPrefix(".sayroute-update-"),
               stage.deletingLastPathComponent().standardizedFileURL.path == target.deletingLastPathComponent().standardizedFileURL.path,
               FileManager.default.fileExists(atPath: target.path), FileManager.default.fileExists(atPath: incoming.path) else {
             throw SafeUpdateError.unsafePath

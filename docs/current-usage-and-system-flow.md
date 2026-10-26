@@ -1,3 +1,5 @@
+> Historical behavior reference for Doubao Murmur 1.3.1. For current SayRoute identity, paths, installation and verification, see [English README](../README.md), [中文说明](../README.zh-CN.md) and [migration](sayroute-migration.md).
+
 # 当前使用方法与系统流程
 
 本文描述正式版 **Doubao Murmur v1.3.1（控制端build20、Mirror build19）**。应用身份为 `com.doubao.murmur`，显示名和可执行文件均为 `Doubao Murmur`。发布说明见[release-notes.md](release-notes.md)。

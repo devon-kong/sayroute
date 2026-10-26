@@ -3,10 +3,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-APP="build/Build/Products/Debug/Doubao Murmur.app"
+APP="build/Build/Products/Debug/SayRoute.app"
 
 # Kill existing instance
-pkill -x "Doubao Murmur" 2>/dev/null || true
+pkill -x "SayRoute" 2>/dev/null || true
 sleep 0.5
 
 if [ ! -d "$APP" ]; then
@@ -15,8 +15,8 @@ if [ ! -d "$APP" ]; then
   exit 1
 fi
 
-echo "🚀 Starting Doubao Murmur..."
+echo "🚀 Starting SayRoute..."
 echo "   Path: $APP"
 echo "   Logs will stream below. Press Ctrl+C to stop."
 echo "---"
-"$APP/Contents/MacOS/Doubao Murmur" 2>&1
+"$APP/Contents/MacOS/SayRoute" 2>&1

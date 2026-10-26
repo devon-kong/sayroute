@@ -4,9 +4,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 xcodegen generate
-echo "🔨 Building doubao-murmur..."
-xcodebuild -project doubao-murmur.xcodeproj \
-  -scheme doubao-murmur \
+echo "🔨 Building SayRoute..."
+xcodebuild -project SayRoute.xcodeproj \
+  -scheme SayRoute \
   -configuration Debug \
   -derivedDataPath build \
   CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION=YES \

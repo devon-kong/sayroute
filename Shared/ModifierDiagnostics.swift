@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 enum ModifierDiagnostics {
-    static let build = "1.3.1 (19)"
+    static let build = "1.4.0 (20)"
     static let strategy = "preflight-snapshot-v2"
 
     static func preparedDetails(_ flags: BalancedPasteKeys.PreparedFlags) -> String {
@@ -70,7 +70,7 @@ enum ModifierDiagnostics {
             eventsOfInterest: CGEventMask(mask), callback: modifierDiagnosticCallback,
             userInfo: Unmanaged.passUnretained(observer).toOpaque()),
               let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
-            fputs("Cannot observe modifiers. Check permission for the installed murmur-mirror executable.\n", stderr)
+            fputs("Cannot observe modifiers. Check permission for the installed sayroute-bridge executable.\n", stderr)
             return 2
         }
         observer.tap = tap
