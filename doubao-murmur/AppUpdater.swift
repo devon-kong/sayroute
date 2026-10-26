@@ -8,20 +8,55 @@ final class AppUpdater: NSObject {
     private var progressBar: NSProgressIndicator?
     private var statusLabel: NSTextField?
     private var continuation: CheckedContinuation<URL, Error>?
+    private var installationTask: Task<Void, Never>?
+    private var isUpdating = false
 
     func downloadAndInstall(update: UpdateChecker.UpdateInfo) {
-        showProgressWindow(version: update.version)
-        Task {
+        guard !isUpdating else { return }
+        isUpdating = true
+        installationTask = Task {
+            defer {
+                isUpdating = false
+                installationTask = nil
+                downloadTask = nil
+                session?.finishTasksAndInvalidate()
+                session = nil
+            }
+            var downloadURL: URL?
+            var staged: UpdatePlan?
+            var helperStarted = false
+            defer {
+                if let downloadURL { try? FileManager.default.removeItem(at: downloadURL) }
+                if let staged, !helperStarted { try? FileManager.default.removeItem(at: staged.stage) }
+            }
             do {
+                guard update.isTrustedReleaseReference else { throw SafeUpdateError.identityMismatch }
+                let currentURL = Bundle.main.bundleURL
+                try UpdatePolicy.requireTrustedRelease(UpdateSignature.identity(at: currentURL))
+                showProgressWindow(version: update.version)
                 let zipURL = try await download(url: update.assetURL)
-                updateStatus("正在安装...")
-                try installAndRelaunch(zipPath: zipURL)
+                downloadURL = zipURL
+                try Task.checkCancellation()
+                updateStatus("正在验证签名并准备可回退更新…")
+                let parentPID = ProcessInfo.processInfo.processIdentifier
+                let plan = try await Task.detached(priority: .userInitiated) {
+                    try UpdatePreparation.prepare(archive: zipURL, currentApp: currentURL,
+                                                  expectedVersion: update.version, parentPID: parentPID)
+                }.value
+                staged = plan
+                try Task.checkCancellation()
+                let launcher = Process()
+                launcher.executableURL = plan.stage.appendingPathComponent("installer")
+                launcher.arguments = [plan.stage.appendingPathComponent("plan.json").path]
+                try launcher.run()
+                helperStarted = true
+                NSApp.terminate(nil)
             } catch is CancellationError {
                 closeProgressWindow()
             } catch {
                 closeProgressWindow()
                 let alert = NSAlert()
-                alert.messageText = "更新失败"
+                alert.messageText = "未安装更新"
                 alert.informativeText = error.localizedDescription
                 alert.alertStyle = .warning
                 alert.addButton(withTitle: "好的")
@@ -42,59 +77,6 @@ final class AppUpdater: NSObject {
             self.downloadTask = task
             task.resume()
         }
-    }
-
-    // MARK: - Install
-
-    private func installAndRelaunch(zipPath: URL) throws {
-        let appBundlePath = Bundle.main.bundlePath
-        let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appendingPathComponent("doubao-murmur-update-\(UUID().uuidString)")
-        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        // Unzip
-        let unzip = Process()
-        unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-        unzip.arguments = ["-o", zipPath.path, "-d", tempDir.path]
-        try unzip.run()
-        unzip.waitUntilExit()
-        guard unzip.terminationStatus == 0 else {
-            throw UpdateError.unzipFailed
-        }
-
-        // Find the .app inside the unzipped directory
-        let contents = try fm.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
-        guard let newApp = contents.first(where: { $0.pathExtension == "app" }) else {
-            throw UpdateError.appNotFound
-        }
-
-        // Write a shell script that waits for us to quit, then replaces the app and relaunches
-        let pid = ProcessInfo.processInfo.processIdentifier
-        let script = """
-        #!/bin/bash
-        # Wait for the current app to exit
-        while kill -0 \(pid) 2>/dev/null; do sleep 0.1; done
-        # Replace
-        rm -rf "\(appBundlePath)"
-        mv "\(newApp.path)" "\(appBundlePath)"
-        # Clean up
-        rm -rf "\(tempDir.path)"
-        rm -f "\(zipPath.path)"
-        # Relaunch
-        open "\(appBundlePath)"
-        """
-
-        let scriptPath = tempDir.appendingPathComponent("update.sh")
-        try script.write(to: scriptPath, atomically: true, encoding: .utf8)
-        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptPath.path)
-
-        let launcher = Process()
-        launcher.executableURL = URL(fileURLWithPath: "/bin/bash")
-        launcher.arguments = [scriptPath.path]
-        try launcher.run()
-
-        // Quit the app so the script can replace it
-        NSApp.terminate(nil)
     }
 
     // MARK: - Progress UI
@@ -149,6 +131,7 @@ final class AppUpdater: NSObject {
     }
 
     @objc private func cancelDownload() {
+        installationTask?.cancel()
         downloadTask?.cancel()
         session?.invalidateAndCancel()
         closeProgressWindow()
@@ -156,19 +139,6 @@ final class AppUpdater: NSObject {
         continuation = nil
     }
 
-    // MARK: - Error
-
-    enum UpdateError: LocalizedError {
-        case unzipFailed
-        case appNotFound
-
-        var errorDescription: String? {
-            switch self {
-            case .unzipFailed: return "解压更新包失败。"
-            case .appNotFound: return "更新包中未找到应用程序。"
-            }
-        }
-    }
 }
 
 // MARK: - URLSessionDownloadDelegate
@@ -183,19 +153,50 @@ extension AppUpdater: URLSessionDownloadDelegate {
         let writtenMB = Double(totalBytesWritten) / 1_048_576
         let totalMB = Double(totalBytesExpectedToWrite) / 1_048_576
         MainActor.assumeIsolated {
+            guard self.downloadTask === downloadTask, continuation != nil else { return }
+            guard totalBytesWritten <= UpdateArchive.maximumArchiveBytes,
+                  totalBytesExpectedToWrite <= UpdateArchive.maximumArchiveBytes else {
+                continuation?.resume(throwing: SafeUpdateError.unsafeArchive)
+                continuation = nil
+                downloadTask.cancel()
+                return
+            }
             progressBar?.doubleValue = percent
             statusLabel?.stringValue = String(format: "正在下载... %.1f / %.1f MB", writtenMB, totalMB)
         }
     }
 
+    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask,
+                                willPerformHTTPRedirection response: HTTPURLResponse,
+                                newRequest request: URLRequest,
+                                completionHandler: @escaping (URLRequest?) -> Void) {
+        guard let url = request.url, url.scheme == "https", url.user == nil, url.password == nil,
+              url.port == nil || url.port == 443,
+              let host = url.host,
+              ["github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"].contains(host) else {
+            completionHandler(nil)
+            return
+        }
+        completionHandler(request)
+    }
+
     nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                                 didFinishDownloadingTo location: URL) {
-        // Move the file to a stable temp path before the continuation resumes
-        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("doubao-murmur-update.zip")
-        try? FileManager.default.removeItem(at: dest)
-        try? FileManager.default.moveItem(at: location, to: dest)
         MainActor.assumeIsolated {
-            continuation?.resume(returning: dest)
+            guard self.downloadTask === downloadTask, continuation != nil else { return }
+            do {
+                guard let response = downloadTask.response as? HTTPURLResponse,
+                      response.statusCode == 200, response.url?.scheme == "https",
+                      let host = response.url?.host,
+                      ["github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"].contains(host),
+                      let size = try location.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                      size > 0, size <= UpdateArchive.maximumArchiveBytes else { throw SafeUpdateError.unsafeArchive }
+                let destination = FileManager.default.temporaryDirectory.appendingPathComponent("murmur-download-\(UUID()).zip")
+                try FileManager.default.moveItem(at: location, to: destination)
+                continuation?.resume(returning: destination)
+            } catch {
+                continuation?.resume(throwing: error)
+            }
             continuation = nil
         }
     }
@@ -204,6 +205,7 @@ extension AppUpdater: URLSessionDownloadDelegate {
                                 didCompleteWithError error: Error?) {
         guard let error = error else { return }
         MainActor.assumeIsolated {
+            guard self.downloadTask === task else { return }
             continuation?.resume(throwing: error)
             continuation = nil
         }

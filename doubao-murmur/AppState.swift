@@ -18,12 +18,15 @@ enum RecordingState {
 class AppState: ObservableObject {
     static let shared = AppState()
 
+    let drafts = SessionDraftStore()
+    @Published var isWaitingForCommit = false
+    @Published var recoveryNotice: RecoveryNotice?
+
     @Published var loginStatus: LoginStatus = .checking
     @Published var recordingState: RecordingState = .idle
     @Published var transcriptionText: String = ""
     @Published var showOverlay: Bool = false
     @Published var errorMessage: String?
-    @Published var unconfirmedDirectPasteCount: Int = 0
 
     var isRecording: Bool {
         recordingState == .recording || recordingState == .starting
@@ -31,6 +34,7 @@ class AppState: ObservableObject {
 
     func reset() {
         recordingState = .idle
+        isWaitingForCommit = false
         transcriptionText = ""
         showOverlay = false
         errorMessage = nil

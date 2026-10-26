@@ -3,3 +3,6 @@ build-tests/
 dist/
 .DS_Store
 *.xcodeproj/
+.build/
+.swiftpm/
+.superpowers/

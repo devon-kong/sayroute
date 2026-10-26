@@ -9,6 +9,10 @@ struct UpdateChecker {
         var assetURL: URL {
             UpdateChecker.assetURL(forTag: tag)
         }
+        var isTrustedReleaseReference: Bool {
+            UpdatePolicy.components(version) != nil && tag == "v" + version
+                && downloadURL.absoluteString == "https://github.com/\(UpdateChecker.repository)/releases/tag/\(tag)"
+        }
     }
 
     enum CheckError: LocalizedError {
@@ -29,7 +33,8 @@ struct UpdateChecker {
     private static let latestURL = "https://github.com/\(repository)/releases/latest"
 
     static func assetURL(forTag tag: String) -> URL {
-        URL(string: "https://github.com/\(repository)/releases/download/\(tag)/Doubao-Murmur-\(tag).zip")!
+        URL(string: "https://github.com/\(repository)/releases/download/")!
+            .appendingPathComponent(tag).appendingPathComponent("Doubao-Murmur-\(tag).zip")
     }
 
     static func check() async throws -> UpdateInfo? {
@@ -57,22 +62,14 @@ struct UpdateChecker {
         let remoteVersion = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
 
-        if isNewer(remote: remoteVersion, current: currentVersion) {
-            return UpdateInfo(version: remoteVersion, tag: tag, downloadURL: redirectURL)
-        }
+        let update = UpdateInfo(version: remoteVersion, tag: tag, downloadURL: redirectURL)
+        guard update.isTrustedReleaseReference else { throw CheckError.noRelease }
+        if isNewer(remote: remoteVersion, current: currentVersion) { return update }
         return nil
     }
 
     static func isNewer(remote: String, current: String) -> Bool {
-        let r = remote.split(separator: ".").compactMap { Int($0) }
-        let c = current.split(separator: ".").compactMap { Int($0) }
-        for i in 0..<max(r.count, c.count) {
-            let rv = i < r.count ? r[i] : 0
-            let cv = i < c.count ? c[i] : 0
-            if rv > cv { return true }
-            if rv < cv { return false }
-        }
-        return false
+        UpdatePolicy.isNewer(remote, than: current)
     }
 }
 

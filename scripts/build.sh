@@ -1,8 +1,9 @@
 #!/bin/bash
 # Build the app
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
 
+xcodegen generate
 echo "🔨 Building doubao-murmur..."
 xcodebuild -project doubao-murmur.xcodeproj \
   -scheme doubao-murmur \

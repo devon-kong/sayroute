@@ -10,6 +10,7 @@ enum DirectPasteOrderState: Equatable {
 }
 
 enum DirectPasteCancellationReason: String, Equatable {
+    case recoveryStorageUnavailable = "recovery_storage_unavailable"
     case emptyTranscription = "empty_transcription"
     case sessionCancelled = "session_cancelled"
     case inputSourceSelectionFailed = "input_source_selection_failed"
@@ -44,6 +45,8 @@ final class DirectPasteOrderCoordinator {
     private let logger: PasteOrderEventLogger
     private let sendOperation: SendOperation
     private let onUnconfirmedCountChanged: (Int) -> Void
+    private let onOutcome: (UUID, PasteOutcome) -> Void
+    private var terminalOrder: [UUID] = []
     private(set) var controllerSessionId: UUID
     private var nextSequence: Int64 = 1
     private var states: [UUID: DirectPasteOrderState] = [:]
@@ -60,17 +63,19 @@ final class DirectPasteOrderCoordinator {
                 onTransportEvent: transportEvent
             )
         },
-        onUnconfirmedCountChanged: @escaping (Int) -> Void = { _ in }
+        onUnconfirmedCountChanged: @escaping (Int) -> Void = { _ in },
+        onOutcome: @escaping (UUID, PasteOutcome) -> Void = { _, _ in }
     ) {
         self.logger = logger
         self.controllerSessionId = controllerSessionId
         self.sendOperation = sendOperation
         self.onUnconfirmedCountChanged = onUnconfirmedCountChanged
+        self.onOutcome = onOutcome
     }
 
-    func beginRecording() -> PasteOrderIdentity {
+    func beginRecording(requestId: UUID = UUID()) -> PasteOrderIdentity {
         let identity = PasteOrderIdentity(
-            requestId: UUID(),
+            requestId: requestId,
             controllerSessionId: controllerSessionId,
             sequence: nextSequence
         )
@@ -165,6 +170,8 @@ final class DirectPasteOrderCoordinator {
                 self.tasks[requestId] = nil
                 self.activeIdentities[requestId] = nil
                 self.publishUnconfirmedCount()
+                self.onOutcome(requestId, .eventPosted)
+                self.pruneTerminal(requestId)
             } catch {
                 guard let self else { return }
                 if Task.isCancelled || (error as? URLError)?.code == .cancelled {
@@ -197,6 +204,8 @@ final class DirectPasteOrderCoordinator {
                 self.tasks[requestId] = nil
                 self.activeIdentities[requestId] = nil
                 self.publishUnconfirmedCount()
+                self.onOutcome(requestId, Self.outcome(for: error))
+                self.pruneTerminal(requestId)
                 print("[DirectPasteOrderCoordinator] Paste event unconfirmed requestId=\(requestId.uuidString); later orders remain enabled")
             }
         }
@@ -214,6 +223,7 @@ final class DirectPasteOrderCoordinator {
             protocolVersion: RemoteClipboardClient.protocolVersion,
             detailsJSON: Self.cancellationDetails(reason)
         )
+        pruneTerminal(identity.requestId)
     }
 
     /// Direct HTTP work is cancelled only during actual application shutdown.
@@ -246,6 +256,26 @@ final class DirectPasteOrderCoordinator {
 
     private func identityForActiveRequest(_ requestId: UUID) -> PasteOrderIdentity? {
         activeIdentities[requestId]
+    }
+
+    private func pruneTerminal(_ id: UUID) {
+        terminalOrder.append(id)
+        while terminalOrder.count > 256 {
+            states.removeValue(forKey: terminalOrder.removeFirst())
+        }
+    }
+
+    static func outcome(for error: Error) -> PasteOutcome {
+        if let url = error as? URLError {
+            if url.code == .cannotConnectToHost { return .notSent(.connectionUnavailable) }
+            return .unknown(.transportUnknown)
+        }
+        if case let RemoteClipboardClientError.unexpectedStatus(status) = error {
+            if status == 423 { return .notSent(.modifiersHeld) }
+            if status == 403 { return .notSent(.remotePermissionDenied) }
+            if [400, 409, 411, 413, 415, 422].contains(status) { return .notSent(.remoteRejected) }
+        }
+        return .unknown(.acknowledgementInvalid)
     }
 
     private static func safeErrorDetails(_ error: Error) -> String? {

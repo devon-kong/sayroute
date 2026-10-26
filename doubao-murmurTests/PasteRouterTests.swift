@@ -3,6 +3,15 @@ import XCTest
 @testable import Doubao_Murmur
 
 final class UpdateCheckerTests: XCTestCase {
+    func testUpdateReferenceRejectsDifferentRepositoryAndMalformedTags() {
+        XCTAssertFalse(UpdateChecker.UpdateInfo(version: "1.3.2", tag: "v1.3.2",
+            downloadURL: URL(string: "https://example.com/releases/tag/v1.3.2")!).isTrustedReleaseReference)
+        XCTAssertFalse(UpdateChecker.UpdateInfo(version: "1.3.2", tag: "v1.3.3",
+            downloadURL: URL(string: "https://github.com/devon-kong/doubao-murmur/releases/tag/v1.3.3")!).isTrustedReleaseReference)
+        XCTAssertFalse(UpdateChecker.isNewer(remote: "2.bad.0", current: "1.3.1"))
+        XCTAssertTrue(UpdateChecker.UpdateInfo(version: "1.3.2", tag: "v1.3.2",
+            downloadURL: URL(string: "https://github.com/devon-kong/doubao-murmur/releases/tag/v1.3.2")!).isTrustedReleaseReference)
+    }
     func testUsesCurrentIndependentRepositoryAndExpectedAppAssetName() {
         let update = UpdateChecker.UpdateInfo(
             version: "1.3.0",
@@ -357,7 +366,7 @@ final class MarkedTextCommitGateTests: XCTestCase {
     }
 
     func testControlSlashDoesNotStopAnActiveRecording() {
-        XCTAssertEqual(SessionTogglePolicy.action(for: .stopping), .cancel)
+        XCTAssertEqual(SessionTogglePolicy.action(for: .stopping), .ignoreWhileRecording)
         XCTAssertEqual(SessionTogglePolicy.action(for: .preparing), .cancel)
         XCTAssertEqual(SessionTogglePolicy.action(for: .recording), .ignoreWhileRecording)
         XCTAssertEqual(SessionTogglePolicy.action(for: .idle), .start)
@@ -647,6 +656,25 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         XCTAssertEqual(rows.map(\.event), ["recording_started"] + events.map(\.rawValue))
         XCTAssertTrue(rows.allSatisfy { $0.textSHA256 == nil })
     }
+    func testTypedOutcomesStayBoundToTheirRequestAndUnknownIsNotRetried() async throws {
+        let sender = ControllableOrderSender()
+        var outcomes: [UUID: PasteOutcome] = [:]
+        let coordinator = DirectPasteOrderCoordinator(
+            logger: PasteOrderEventLogger(side: "controller-test", databaseURL: FileManager.default.temporaryDirectory.appendingPathComponent("outcomes-\(UUID()).sqlite3")),
+            sendOperation: { text, identity, event in try await sender.send(text: text, identity: identity, transportEvent: event) },
+            onOutcome: { id, outcome in outcomes[id] = outcome }
+        )
+        let a = submit("第一笔", to: coordinator), b = submit("第二笔", to: coordinator)
+        try await sender.waitForRequestCount(2)
+        await sender.fail(a, error: URLError(.timedOut))
+        await sender.succeed(b)
+        try await waitUntil { outcomes.count == 2 }
+        XCTAssertEqual(outcomes[a.requestId], .unknown(.transportUnknown))
+        XCTAssertEqual(outcomes[b.requestId], .eventPosted)
+        let count = await sender.sendCount(for: a.requestId)
+        XCTAssertEqual(count, 1)
+    }
+
     private func submit(_ text: String, to coordinator: DirectPasteOrderCoordinator) -> PasteOrderIdentity {
         let identity = coordinator.beginRecording()
         coordinator.transcriptionReady(identity: identity, textLength: text.count)

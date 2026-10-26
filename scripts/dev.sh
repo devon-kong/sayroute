@@ -1,8 +1,9 @@
 #!/bin/bash
 # Build and run in one step, with logs streaming
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
 
+xcodegen generate
 echo "🔨 Building..."
 xcodebuild -project doubao-murmur.xcodeproj \
   -scheme doubao-murmur \

@@ -5,15 +5,14 @@ set -euo pipefail
 repo_root="$(cd "${0:A:h}/.." && pwd)"
 cd "${repo_root}"
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
-    print -u2 "Refusing to package tracked changes that are not committed."
+if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+    print -u2 "Refusing to package an uncommitted working tree."
     exit 1
 fi
 
-xcode_app="${XCODE_APP:-/Applications/Xcode.app}"
-developer_dir="${xcode_app}/Contents/Developer"
+developer_dir="${DEVELOPER_DIR:-$(xcode-select -p)}"
 [[ -x "${developer_dir}/usr/bin/xcodebuild" ]] || {
-    print -u2 "Xcode was not found at ${xcode_app}."
+    print -u2 "Full Xcode was not found at ${developer_dir}."
     exit 1
 }
 command -v xcodegen >/dev/null || {
@@ -22,8 +21,10 @@ command -v xcodegen >/dev/null || {
 }
 
 full_sha="$(git rev-parse HEAD)"
-short_sha="$(git rev-parse --short=12 HEAD)"
-package_name="murmur-mirror-mac-mini-${short_sha}"
+helper_build="$(sed -n 's/.*static let build = "\(.*\)"/\1/p' Shared/ModifierDiagnostics.swift)"
+[[ "${helper_build}" == <->.<->.<->\ \(<->\) ]] || { print -u2 "Invalid Mirror version"; exit 1; }
+package_version="$(print -r -- "${helper_build}" | sed -E 's/^([0-9.]+) \(([0-9]+)\)$/\1-build\2/')"
+package_name="murmur-mirror-mac-mini-v${package_version}"
 dist_dir="${repo_root}/dist"
 archive_path="${dist_dir}/${package_name}.zip"
 temporary_root="$(/usr/bin/mktemp -d -t murmur-mirror-package)"
@@ -64,9 +65,10 @@ archs="$(/usr/bin/lipo -archs "${package_root}/murmur-mirror")"
 
 /bin/cp packaging/murmur-mirror/install.command "${package_root}/install.command"
 /bin/cp packaging/murmur-mirror/verify.command "${package_root}/verify.command"
+/bin/cp packaging/murmur-mirror/diagnose.command "${package_root}/diagnose.command"
 /bin/cp packaging/murmur-mirror/com.doubao.murmur.mirror.plist "${package_root}/com.doubao.murmur.mirror.plist"
 /bin/cp packaging/murmur-mirror/README.md "${package_root}/README.md"
-/bin/chmod 0755 "${package_root}/install.command" "${package_root}/verify.command" "${package_root}/murmur-mirror"
+/bin/chmod 0755 "${package_root}/install.command" "${package_root}/verify.command" "${package_root}/diagnose.command" "${package_root}/murmur-mirror"
 
 (
     cd "${package_root}"
@@ -74,6 +76,7 @@ archs="$(/usr/bin/lipo -archs "${package_root}/murmur-mirror")"
 )
 
 {
+    print "helper_build=${helper_build}"
     print "source_commit=${full_sha}"
     print "source_branch=$(git branch --show-current)"
     print "architectures=${archs}"
@@ -84,7 +87,7 @@ archs="$(/usr/bin/lipo -archs "${package_root}/murmur-mirror")"
 } > "${package_root}/BUILD-INFO.txt"
 
 /usr/bin/plutil -lint "${package_root}/com.doubao.murmur.mirror.plist" >/dev/null
-/bin/zsh -n "${package_root}/install.command" "${package_root}/verify.command"
+/bin/zsh -n "${package_root}/install.command" "${package_root}/verify.command" "${package_root}/diagnose.command"
 
 /bin/mkdir -p "${dist_dir}"
 /bin/rm -f "${archive_path}"
@@ -93,5 +96,6 @@ archs="$(/usr/bin/lipo -archs "${package_root}/murmur-mirror")"
     /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${package_name}" "${archive_path}"
 )
 
+(cd "${dist_dir}" && /usr/bin/shasum -a 256 "${package_name}.zip" > "${package_name}.zip.sha256")
 print "Created ${archive_path}"
 print "Archive SHA-256: $(/usr/bin/shasum -a 256 "${archive_path}" | /usr/bin/awk '{print $1}')"

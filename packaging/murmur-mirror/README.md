@@ -1,6 +1,6 @@
 # Mac mini 安装说明（无需 Xcode）
 
-这个安装包只安装 Mac mini 被控制端所需的 `murmur-mirror`。Doubao Murmur 主 App 仍运行在 MacBook 控制端。
+本包是 **Mirror 1.3.1 build19 正式版**，配套 Doubao Murmur 控制端 v1.3.1 build20。它修正合成粘贴后Command状态残留问题；用户已确认基础Command/Delete交互恢复正常。只安装被控端所需的 `murmur-mirror`，主App运行在控制端。
 
 ## 1. 安装 helper
 
@@ -86,23 +86,27 @@ curl --fail --silent --show-error --max-time 3 \
 
 JSON 字段顺序可能不同。若 `accessibilityTrusted` 为 `false`，回到第 2 步；连接失败则检查 Mac mini helper、UU 当前设备、规则启用状态和端口占用。
 
-## 5. 一次性真实验收
+## 5. Mirror build19 两机验收
 
-1. 在 Mac mini 打开一个无副作用的空白文本框并保持为前台目标。
-2. 在 MacBook 的 Doubao Murmur 选择快速模式，只发起一次短文本录音。
-3. 验收目标是：文本只插入一次、插入到预期输入框。
-4. 若控制端菜单显示某笔“状态未知”，先观察目标输入框，**不要重试该笔订单**；状态未知不会阻断后续快速输入。
+正式组合为控制端build20、Mirror build19。已安装build19的被控端无需重复安装；只更新控制端不会改变快速模式的远端合成按键。
 
-订单事件库只记录请求标识、顺序、阶段时间、文字长度、目标进程和错误码等诊断元数据，不保存识别文字、剪贴板内容、窗口标题或默认文字哈希。分析问题时应通过 `request_id`、`controller_session_id` 和 `sequence` 与控制端事件库关联。
+1. `verify.command` 的健康响应应包含 `helperBuild: "1.3.1 (19)"`、`pasteKeyStrategy: "preflight-snapshot-v2"`，并确认辅助功能为 true。
+2. 在被控端准备空白测试文本框，控制端按 `Control + /` 开始，说完按物理右 Command 停止并完全松开。
+3. 先核对文字只插入一次，再从控制端经 UU 依次按 Delete、空格、A：分别只删除一个字符、插入空格、插入普通字符；不应删除整行、弹 Spotlight 或全选。
+4. 左右 Command 各按下再松开后重测；短文字与100字以上长文字都测，并连续发送两笔。按住修饰键时 helper 会拒绝自动粘贴，放开后从记录复制恢复；不会额外发送全局Command松开事件或自动重发。
+5. 断连测试预期为失败提示与记录保留；恢复连接后发起新会话应成功。遇到“结果未知”，先检查目标，避免手动重复粘贴。
+6. 真实并发边界：在粘贴临界时按下/松开左右Command或Shift，检查是否误释放、漏按或残留。这一项未完成前，不宣称已覆盖全部物理按键场景；若有回归，停止验收、保留日志，暂用兼容模式。
 
-## 6. MacBook 端操作与快速模式最小验收
+`eventPosted=true` 只证明 helper 投递了按键，不等于目标应用已经消费文字。基础场景已由用户验收；上述矩阵用于新设备和不同目标编辑器的回归检查，并不声称所有组合均已验证。
 
-本 helper 仍来自发布提交 `aa469c2`；它不是 build13 重新打包的 helper。MacBook 控制端 build13 的正确操作是：
+## 6. 出现键盘异常时的60秒诊断
 
-1. 在目标输入框前按一次 `Control + /` 开始；应用在热键完全释放、焦点和豆包输入法就绪后启动豆包。
-2. 说完后，用户手动按一次**物理右 Command**停止豆包；录音期间重复使用 `Control + /` 会被忽略。
-3. 只在输入法 marked text 的下划线从有到无、且物理右 Command 已抬起后，控制端才提交快速模式订单。
+在**被控端**双击 `diagnose.command`，随后切回空白测试输入框，在60秒内完成快速输入和 Delete/空格/A 测试。可在终端按 Control-C 提前停止。它只监听，不修改或吞掉按键，不读取 Unicode 文字或剪贴板；只输出修饰键及上述测试键的类别、flags、来源PID、事件源、时间与版本。其他普通键忽略。日志权限受 umask 077 限制，文件位于 `~/Library/Logs/Doubao Murmur/modifiers-*.jsonl`。
 
-用户已完成快速模式实测并报告文字进入正确目标且只插入一次。若控制端显示“状态未知”，先检查目标框，**不要重试同一笔订单**；`eventPosted=true` 只表示 helper 投递了 `Command-V`，不等于目标应用已消费文字。
+若系统拒绝监听，按提示检查已安装 Mirror 的辅助功能/输入监控权限；不要把空日志当作没有异常。诊断命令支持1–120秒，不会常驻监听。
+
+粘贴前后快照写入 `paste-orders-helper.sqlite3` 的 `modifiers_before_paste` / `modifiers_after_paste`，以 request_id 关联控制端订单。新增`paste_keys_prepared`记录发送前准备的down/up flags，`modifiers_after_dispatch`在投递后约50ms异步采样，不增加粘贴等待时间；这些快照不代表目标已消费文字，也不能仅凭50ms状态断定发生残留，因为用户可能已按其他修饰键。可结合诊断中的后续 Delete/空格事件判断 Command 是否仍存在；如果仍异常，分别对照远端物理键盘、UU键盘，以及断开UU后的helper本机粘贴，再定位 UU 与合成事件的影响。
+
+订单事件库不保存识别文字、剪贴板内容、窗口标题或默认文字哈希。诊断元数据仍可能体现按键时间和前台进程，请只在空白测试场景运行。
 
 认证/token 当前按项目决策暂缓。前提是 helper 只监听 Mac mini loopback，UU 也只在 MacBook loopback 建立本地监听。若任何一端暴露到 LAN、长期开放给其他用户或准备公开分发，认证立即升级为部署前必做。

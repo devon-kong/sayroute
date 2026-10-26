@@ -14,6 +14,8 @@ private let pasteOrderEventLogger = PasteOrderEventLogger(
 )
 
 private struct JSONResponse: Encodable {
+    let helperBuild = ModifierDiagnostics.build
+    let pasteKeyStrategy = ModifierDiagnostics.strategy
     let ok: Bool
     let protocolVersion: Int
     let error: String?
@@ -459,6 +461,8 @@ private final class MirrorConnection {
             protocolVersion: serviceProtocolVersion,
             textLength: payload.text.count
         )
+        pasteOrderEventLogger.capture(identity: payload.identity, event: "modifiers_before_paste",
+            protocolVersion: serviceProtocolVersion, detailsJSON: ModifierDiagnostics.snapshot(stage: "before_paste"))
         guard AXIsProcessTrusted() else {
             return pasteError(
                 status: 403,
@@ -468,6 +472,10 @@ private final class MirrorConnection {
         }
         guard let targetBeforeWrite = NSWorkspace.shared.frontmostApplication else {
             return pasteError(status: 409, reason: "Conflict", message: "No frontmost application is available for paste.")
+        }
+
+        guard !BalancedPasteKeys.hasHeldModifiers() else {
+            return pasteError(status: 423, reason: "Locked", message: "Release physical/remote modifiers before recovering this text.")
         }
 
         let pasteboard = NSPasteboard.general
@@ -492,7 +500,27 @@ private final class MirrorConnection {
               targetBeforeEvent.processIdentifier == targetBeforeWrite.processIdentifier else {
             return pasteError(status: 409, reason: "Conflict", message: "Frontmost application changed before paste.")
         }
-        guard postCommandV() else {
+        let identity = payload.identity
+        let keyResult = BalancedPasteKeys.post(onPrepared: { flags in
+            pasteOrderEventLogger.capture(identity: identity, event: "paste_keys_prepared",
+                protocolVersion: serviceProtocolVersion, detailsJSON: ModifierDiagnostics.preparedDetails(flags))
+        })
+        pasteOrderEventLogger.capture(identity: payload.identity, event: "modifiers_after_paste",
+            protocolVersion: serviceProtocolVersion, detailsJSON: ModifierDiagnostics.snapshot(stage: keyResult.rawValue))
+        ModifierDiagnostics.schedulePostDispatch(result: keyResult,
+            schedule: { delay, work in DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work) },
+            capture: {
+                // Retain only request identity, never payload text. This is a
+                // later observation, not proof of target consumption or failure.
+                pasteOrderEventLogger.capture(identity: identity, event: "modifiers_after_dispatch",
+                    protocolVersion: serviceProtocolVersion,
+                    detailsJSON: ModifierDiagnostics.snapshot(stage: "after_dispatch"))
+            })
+        switch keyResult {
+        case .posted: break
+        case .modifiersHeld:
+            return pasteError(status: 423, reason: "Locked", message: "Modifier state changed before paste; no key event was posted.")
+        case .eventCreationFailed:
             return pasteError(status: 500, reason: "Internal Server Error", message: "Could not create the Command-V events.")
         }
 
@@ -535,19 +563,6 @@ private final class MirrorConnection {
     private func elapsedMillisecondsSinceRequestReceived() -> Double? {
         guard let start = requestReceivedMonotonicNanoseconds else { return nil }
         return Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
-    }
-
-    private func postCommandV() -> Bool {
-        guard let source = CGEventSource(stateID: .hidSystemState),
-              let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
-              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false) else {
-            return false
-        }
-        keyDown.flags = .maskCommand
-        keyUp.flags = .maskCommand
-        keyDown.post(tap: .cghidEventTap)
-        keyUp.post(tap: .cghidEventTap)
-        return true
     }
 
     private func error(status: Int, reason: String, message: String) -> HTTPResponse {
@@ -827,6 +842,11 @@ private func parsePort(arguments: [String]) -> UInt16? {
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 let port = parsePort(arguments: arguments) ?? defaultPort
+
+if arguments.first == "--diagnose-modifiers" {
+    let seconds = arguments.count == 1 ? 60 : Double(arguments[1]) ?? 0
+    exit(ModifierDiagnostics.run(seconds: seconds))
+}
 
 if arguments.contains("--smoke-client") {
     exit(SmokeClient(port: port).run())

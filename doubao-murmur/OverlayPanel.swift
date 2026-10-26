@@ -25,27 +25,27 @@ enum TextInputFocusStatus: Equatable {
 
 class OverlayPanel: NSPanel {
     private let appState: AppState
+    private let textClients = IMETextClientSession()
     private weak var textView: IMETrackingTextView?
     private var focusRequestID: UUID?
     private var focusCompletion: ((Bool) -> Void)?
     var onCancel: (() -> Void)?
+    var onCopyCurrentText: (() -> Void)?
     var onMarkedTextStateChanged: ((Bool) -> Void)?
+    var onSnapshotChanged: ((IMETextSnapshot) -> Void)?
+    private var trackingSessionID: UUID?
+    private var placement: OverlayPlacementContext?
+    private var requestedHeight: CGFloat = 76
 
     override var canBecomeKey: Bool { true }
 
     init(appState: AppState) {
         self.appState = appState
 
-        let width: CGFloat = 420
-        let height: CGFloat = 76
-
-        // Position at top-center of main screen
+        // Initial hidden frame; each session supplies its own placement.
         let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let x = screenFrame.midX - width / 2
-        let y = screenFrame.maxY - height - 20
-
         super.init(
-            contentRect: NSRect(x: x, y: y, width: width, height: height),
+            contentRect: OverlayGeometry.frame(in: screenFrame, height: 76),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -67,27 +67,19 @@ class OverlayPanel: NSPanel {
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.isMovableByWindowBackground = true
         self.hidesOnDeactivate = false
-
-        let hostingView = NSHostingView(
-            rootView: OverlayView(appState: appState) { [weak self] textView in
-                self?.installTextView(textView)
-            }
-        )
-        self.contentView = hostingView
+        NotificationCenter.default.addObserver(self, selector: #selector(displayConfigurationChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
     }
 
-    func showOverlay(onFocusReady: @escaping (Bool) -> Void) {
-        print("[OverlayPanel] showOverlay called")
-        // Reposition to top-center in case screen changed
-        if let screen = NSScreen.main {
-            let width: CGFloat = 420
-            let height: CGFloat = 76
-            let x = screen.visibleFrame.midX - width / 2
-            let y = screen.visibleFrame.maxY - height - 20
-            let frame = NSRect(x: x, y: y, width: width, height: height)
-            print("[OverlayPanel] Setting frame: \(frame)")
-            setFrame(frame, display: true)
-        }
+    @objc private func displayConfigurationChanged() {
+        guard isVisible, let placement else { return }
+        setFrame(placement.frame(height: requestedHeight, displays: OverlayDisplay.current), display: true)
+    }
+
+    func showOverlay(placement: OverlayPlacementContext, onFocusReady: @escaping (Bool) -> Void) {
+        self.placement = placement
+        requestedHeight = 76
+        setFrame(placement.frame(height: 76, displays: OverlayDisplay.current), display: true)
         orderFrontRegardless()
         requestTextInputFocus(onReady: onFocusReady)
         print("[OverlayPanel] ✅ Overlay is now visible (isVisible=\(isVisible), isKeyWindow=\(isKeyWindow))")
@@ -145,9 +137,38 @@ class OverlayPanel: NSPanel {
 
     /// Clear the AppKit text client synchronously so a previous session's text
     /// cannot be drawn during the next panel presentation.
+    func beginTracking(sessionID: UUID) {
+        trackingSessionID = sessionID
+        textView = nil
+        let client = textClients.begin(sessionID: sessionID)
+        let hostingView = NSHostingView(rootView: OverlayView(appState: appState, textView: client, onCopyCurrentText: { [weak self] in self?.onCopyCurrentText?() }) { [weak self] view in
+            guard let self, self.trackingSessionID == sessionID, self.textClients.current === view else { return }
+            self.installTextView(view)
+        })
+        hostingView.wantsLayer = true
+        hostingView.layer?.cornerRadius = 16
+        hostingView.layer?.masksToBounds = true
+        contentView = hostingView
+    }
+
+    func showStorageFailure() {
+        textClients.current?.freezeForRecovery()
+        guard let placement else { return }
+        requestedHeight = 180
+        setFrame(placement.frame(height: 180, displays: OverlayDisplay.current), display: true)
+        if textInputFocusStatus.isConfirmed {
+            OverlayZoomSupport.reveal(frame: frame, mode: placement.mode)
+        }
+    }
+
+    func copyRetainedText(using write: (String) -> Bool) -> Bool {
+        textClients.current?.copyRecoveryText(using: write) ?? false
+    }
+
     func clearText() {
-        guard let textView else { return }
-        textView.clearProgrammatically()
+        trackingSessionID = nil
+        textClients.retire()
+        textView = nil
     }
 
     override func keyDown(with event: NSEvent) {
@@ -161,6 +182,7 @@ class OverlayPanel: NSPanel {
 
     private func installTextView(_ textView: IMETrackingTextView) {
         self.textView = textView
+        textView.onSnapshotChanged = { [weak self] in self?.onSnapshotChanged?($0) }
         textView.onMarkedTextStateChanged = { [weak self] hasMarkedText in
             self?.onMarkedTextStateChanged?(hasMarkedText)
         }
@@ -189,6 +211,9 @@ class OverlayPanel: NSPanel {
             let completion = self.focusCompletion
             self.focusRequestID = nil
             self.focusCompletion = nil
+            if confirmed, let placement = self.placement {
+                OverlayZoomSupport.reveal(frame: self.frame, mode: placement.mode)
+            }
             completion?(confirmed)
         }
     }

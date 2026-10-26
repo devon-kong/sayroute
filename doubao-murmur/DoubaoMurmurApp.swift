@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @main
 struct DoubaoMurmurApp: App {
@@ -19,6 +20,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var overlayPanel: OverlayPanel!
     private var appUpdater: AppUpdater?
     private let appState = AppState.shared
+    private var subscriptions = Set<AnyCancellable>()
+    private var recoveryWindow: RecoveryWindowController?
+    private var recoveryNotice: RecoveryNoticePanel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("[AppDelegate] applicationDidFinishLaunching (IME bridge)")
@@ -26,7 +30,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupOverlay()
         setupHotkey()
         setupInputMethodSessionManager()
+        appState.drafts.$entries.map { $0.filter { $0.isUnreadFailure }.count }
+            .removeDuplicates().receive(on: RunLoop.main).sink { [weak self] _ in
+            self?.refreshRecoveryStatus()
+        }.store(in: &subscriptions)
+        let notice = RecoveryNoticePanel()
+        notice.onViewRecords = { [weak self] in self?.showRecovery() }
+        recoveryNotice = notice
+        appState.$recordingState.removeDuplicates().sink { [weak self] state in
+            self?.recoveryNotice?.setRecordingBusy(state != .idle)
+        }.store(in: &subscriptions)
+        appState.$recoveryNotice.compactMap { $0 }.receive(on: RunLoop.main).sink { [weak self] message in
+            guard let self else { return }
+            self.recoveryNotice?.present(message)
+        }.store(in: &subscriptions)
         print("[AppDelegate] ✅ IME bridge setup complete")
+        UpdateStartupReceipt.writeIfRequested()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -51,16 +70,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let statusMenuItem = NSMenuItem(title: "豆包输入法语音输入", action: nil, keyEquivalent: "")
         statusMenuItem.isEnabled = false
         menu.addItem(statusMenuItem)
-        if appState.unconfirmedDirectPasteCount > 0 {
-            let unknownItem = NSMenuItem(
-                title: "快速粘贴状态未知：\(appState.unconfirmedDirectPasteCount) 笔（后续输入不受影响）",
-                action: nil,
-                keyEquivalent: ""
-            )
-            unknownItem.isEnabled = false
-            menu.addItem(unknownItem)
-        }
+        let count = appState.drafts.unreadFailureCount
+        let recoveryItem = NSMenuItem(title: count > 0 ? "最近文字与恢复（\(count)条新失败提醒）" : "最近文字与恢复",
+                                      action: #selector(showRecovery), keyEquivalent: "")
+        recoveryItem.target = self
+        menu.addItem(recoveryItem)
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(makeOverlayPositionItem())
         menu.addItem(makeUUPasteModeItem())
         menu.addItem(makePasteDelayItem())
         menu.addItem(NSMenuItem.separator())
@@ -84,6 +100,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         stepper.minValue = 0.25
         stepper.maxValue = 10
         stepper.increment = 0.25
+        let compatibility = PasteRoutingSettings().uuPasteMode == .compatibility
+        stepper.isEnabled = compatibility
         stepper.valueWraps = false
         stepper.doubleValue = PasteHelper.remoteSyncQuietPeriod
         stepper.target = self
@@ -91,6 +109,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         container.addSubview(stepper)
 
         let field = NSTextField(frame: NSRect(x: 166, y: 2, width: 58, height: 24))
+        field.isEnabled = compatibility
+        container.toolTip = compatibility ? "只影响UU兼容模式的剪贴板同步" : "快速模式不使用此等待时间"
         field.tag = Self.pasteDelayFieldTag
         field.stringValue = String(format: "%g", PasteHelper.remoteSyncQuietPeriod)
         field.alignment = .right
@@ -101,6 +121,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSMenuItem()
         item.view = container
         return item
+    }
+
+    private func makeOverlayPositionItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "输入框位置", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        let selected = OverlayPlacementSettings().mode
+        for mode in OverlayPositionMode.allCases {
+            let option = NSMenuItem(title: mode.title, action: #selector(overlayPositionChanged(_:)), keyEquivalent: "")
+            option.target = self
+            option.representedObject = mode.rawValue
+            option.state = mode == selected ? .on : .off
+            option.toolTip = "下次开启输入框时生效"
+            submenu.addItem(option)
+        }
+        item.submenu = submenu
+        return item
+    }
+
+    @objc private func overlayPositionChanged(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String,
+              let mode = OverlayPositionMode(rawValue: value) else { return }
+        OverlayPlacementSettings().mode = mode
+        rebuildMenu()
     }
 
     private func makeUUPasteModeItem() -> NSMenuItem {
@@ -156,6 +199,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("[AppDelegate] Paste quiet period set to \(value)s")
     }
 
+    private func refreshRecoveryStatus() {
+        let count = appState.drafts.unreadFailureCount
+        statusItem.button?.title = count > 0 ? " \(count)" : ""
+        statusItem.button?.toolTip = count > 0 ? "\(count)条新失败提醒，点击菜单打开最近文字与恢复" : "Doubao Murmur"
+        rebuildMenu()
+    }
+
+    @objc private func showRecovery() {
+        recoveryNotice?.dismissNotice()
+        if recoveryWindow == nil { recoveryWindow = RecoveryWindowController(store: appState.drafts) }
+        recoveryWindow?.show()
+    }
+
     @objc private func showHelp() {
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "未知"
         let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "未知"
@@ -173,9 +229,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         3. 说完后手动按一次物理右 Command 停止豆包；输入法下划线消失后，应用才冻结最终文字并按所选模式粘贴
         4. 录音期间重复按 ⌃ Control + / 会被忽略；按 ESC 则安全取消，不复制粘贴，并恢复原来的输入法
 
+        菜单“输入框位置”可选择跟随鼠标坐标或屏幕上方，下次录音生效。鼠标模式请先把鼠标移到目标输入框附近。
+
         UU 远程可选择兼容模式（UU 正常剪贴板同步）或快速模式（需 Mac mini helper 和端口映射）。
 
         兼容模式如出现旧剪贴板内容，可在菜单的「剪贴板稳定时间」调大秒数后回车。快速模式需先在 Mac mini 安装并验证 helper。
+
+        等待提交超过1.5秒会提示，15秒仍未确认则停止并保留文字。
+        失败或目标未收到内容时，从菜单打开“最近文字与恢复”。历史文字以加密临时文件保存，最多3天，退出后不恢复；复制不会删除。打开窗口会清除已有提醒。
+        结果未知时先检查目标，避免重复。已投递按键不代表目标输入框已插入文字。
 
         如果豆包输入法未安装或未启用，本次会话不会开始。
         """

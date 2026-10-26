@@ -65,6 +65,11 @@ struct PasteRouter {
         return settings.uuPasteMode == .direct ? .uuDirect : .uuCompatibility
     }
 
+    static func targetIsReady(expectedPID: Int32?, frontmostPID: Int32?, isTerminated: Bool) -> Bool {
+        guard let expectedPID, !isTerminated else { return false }
+        return frontmostPID == expectedPID
+    }
+
     /// Compatibility mode publishes locally before restoring UU so its normal
     /// clipboard channel can start syncing immediately. Direct mode now writes
     /// and pastes entirely on the controlled Mac, so publishing on the
