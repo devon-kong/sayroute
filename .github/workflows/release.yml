@@ -1,6 +1,7 @@
 name: Validate and release macOS app
 
 on:
+  workflow_dispatch:
   push:
     branches: [master]
     tags: ['v*']
