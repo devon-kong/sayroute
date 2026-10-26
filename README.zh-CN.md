@@ -10,8 +10,8 @@
 
 > **1.4.0 RC 1 预发布版**：控制端 build21、SayRoute Bridge build20。[下载 SayRoute 预发布版](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)。真实输入尚待验收，未标为正式版。详见[验收状态](docs/sayroute-acceptance.md)。上一个正式版为 Doubao Murmur 1.3.1。
 
-<p align="center"><img src="docs/screenshots/overlay_pannel.png" width="500" alt="语音输入悬浮窗：等待输入法明确提交后再投递文字"></p>
-<p align="center"><em>这是上一版 Doubao Murmur 的真实截图，用于说明保留的输入界面，不代表已完成 SayRoute 真实输入验收。当前界面使用中文。</em></p>
+<p align="center"><img src="docs/visuals/sayroute-interface.png" width="1000" alt="SayRoute 界面示意图：语音输入浮窗、恢复记录与三种投递方式"></p>
+<p align="center"><em>根据当前界面代码绘制的示意图，内容为演示文字。当前应用界面使用中文。</em></p>
 
 ## 解决什么问题
 

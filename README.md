@@ -10,8 +10,8 @@ A native macOS dictation companion that delivers confirmed text to your local ap
 
 > **1.4.0 RC 1:** controller build21 and SayRoute Bridge build20. [Download the SayRoute preview](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1). Real-input acceptance is pending; this is a prerelease. See [acceptance status](docs/sayroute-acceptance.md). The previous release was Doubao Murmur 1.3.1.
 
-<p align="center"><img src="docs/screenshots/overlay_pannel.png" width="500" alt="Existing dictation overlay: recognized text is held until the input method commits it"></p>
-<p align="center"><em>Actual overlay screenshot from the preceding Doubao Murmur release. It illustrates the retained dictation interface, not a newly validated SayRoute session. The interface currently uses Chinese.</em></p>
+<p align="center"><img src="docs/visuals/sayroute-interface.png" width="1000" alt="SayRoute interface illustration showing dictation, recovery records and three delivery routes"></p>
+<p align="center"><em>Code-rendered illustration of the current dictation and recovery UI, with sample text. The app interface currently uses Chinese.</em></p>
 
 ## What it does
 
