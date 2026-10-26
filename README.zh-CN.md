@@ -8,7 +8,7 @@
 
 [English](README.md) · **简体中文**
 
-> **1.4.0 迁移候选版**：控制端 build21、SayRoute Bridge build20。更名尚在验证，未作为正式版发布。详见[验收状态](docs/sayroute-acceptance.md)。上一个正式版为 Doubao Murmur 1.3.1。
+> **1.4.0 RC 1 预发布版**：控制端 build21、SayRoute Bridge build20。[下载 SayRoute 预发布版](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)。真实输入尚待验收，未标为正式版。详见[验收状态](docs/sayroute-acceptance.md)。上一个正式版为 Doubao Murmur 1.3.1。
 
 <p align="center"><img src="docs/screenshots/overlay_pannel.png" width="500" alt="语音输入悬浮窗：等待输入法明确提交后再投递文字"></p>
 <p align="center"><em>这是上一版 Doubao Murmur 的真实截图，用于说明保留的输入界面，不代表已完成 SayRoute 真实输入验收。当前界面使用中文。</em></p>
@@ -33,7 +33,7 @@
 - 通用构建包含 Apple Silicon 和 Intel；编译通过不代表已经完成 Intel 实机验收。
 - 当前使用 ad-hoc 签名，**未做 Apple 公证**；此签名不启用自动安装更新，请核验安装包后手动更新。
 
-候选包可按下方命令在本机构建。只有完成发布后，[GitHub Releases](https://github.com/devon-kong/sayroute/releases) 才会提供 SayRoute 包；上一正式版的旧名称压缩包不是 SayRoute。
+下载 [SayRoute 1.4.0 RC 1](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)：控制端使用 `SayRoute-v1.4.0-rc.1.zip`，被控端使用 `sayroute-bridge-macos-v1.4.0-build20.zip`。此前 v1.3.1 保留为 Doubao Murmur 历史版本。
 
 解压控制端安装包，将 `SayRoute.app` 放入“应用程序”。从 Doubao Murmur 升级时，**先复制需要保留的恢复文字，再退出旧应用**，然后按[迁移与回退说明](docs/sayroute-migration.md) 操作。新 Bundle ID 需要单独授予辅助功能权限。
 

@@ -26,7 +26,7 @@ for field in CFBundleName CFBundleDisplayName CFBundleExecutable; do
     [[ "$(/usr/libexec/PlistBuddy -c "Print :${field}" "${plist}")" == 'SayRoute' ]]
 done
 if [[ -n "${RELEASE_TAG:-}" ]]; then
-    [[ "${RELEASE_TAG}" == "v${version}" ]] || { print -u2 "Tag and project version differ"; exit 1; }
+    [[ "${RELEASE_TAG}" == "v${version}" || "${RELEASE_TAG}" == "v${version}-rc."<-> ]] || { print -u2 "Tag and project version differ"; exit 1; }
 fi
 for binary in "${app}/Contents/MacOS/SayRoute" "${app}/Contents/Helpers/sayroute-updater"; do
     archs="$(/usr/bin/lipo -archs "${binary}")"
@@ -34,7 +34,7 @@ for binary in "${app}/Contents/MacOS/SayRoute" "${app}/Contents/Helpers/sayroute
 done
 /usr/bin/codesign --verify --strict --deep "${app}"
 mkdir -p dist
-archive="${repo_root}/dist/SayRoute-v${version}${package_suffix}.zip"
+archive="${repo_root}/dist/SayRoute-${RELEASE_TAG:-v${version}}${package_suffix}.zip"
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${app}" "${archive}"
 /usr/bin/ditto -x -k "${archive}" "${temporary_root}/verify"
 /usr/bin/codesign --verify --strict --deep "${temporary_root}/verify/SayRoute.app"

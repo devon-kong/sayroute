@@ -49,6 +49,7 @@ jobs:
           path: dist
       - uses: softprops/action-gh-release@v2
         with:
+          name: SayRoute ${{ github.ref_name }}
           body_path: docs/release-notes.md
           files: dist/*
           fail_on_unmatched_files: true

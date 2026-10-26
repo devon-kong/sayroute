@@ -8,7 +8,7 @@ A native macOS dictation companion that delivers confirmed text to your local ap
 
 **English** · [简体中文](README.zh-CN.md)
 
-> **1.4.0 migration candidate:** controller build21 and SayRoute Bridge build20. The rebrand is under validation; it is not a published stable release. See [acceptance status](docs/sayroute-acceptance.md). The previous release was Doubao Murmur 1.3.1.
+> **1.4.0 RC 1:** controller build21 and SayRoute Bridge build20. [Download the SayRoute preview](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1). Real-input acceptance is pending; this is a prerelease. See [acceptance status](docs/sayroute-acceptance.md). The previous release was Doubao Murmur 1.3.1.
 
 <p align="center"><img src="docs/screenshots/overlay_pannel.png" width="500" alt="Existing dictation overlay: recognized text is held until the input method commits it"></p>
 <p align="center"><em>Actual overlay screenshot from the preceding Doubao Murmur release. It illustrates the retained dictation interface, not a newly validated SayRoute session. The interface currently uses Chinese.</em></p>
@@ -33,7 +33,7 @@ A native macOS dictation companion that delivers confirmed text to your local ap
 - Universal builds include Apple Silicon and Intel slices. Runtime acceptance on Intel is not established by compilation.
 - Packages use ad-hoc signing and are **not Apple-notarized**. Automatic installation stays disabled for these signatures; update manually using a verified package.
 
-Candidate packages are built locally with the commands below. A public SayRoute download is available only after the migration is published to [GitHub Releases](https://github.com/devon-kong/sayroute/releases). Do not assume the previous release's archives contain SayRoute.
+Download [SayRoute 1.4.0 RC 1](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1): `SayRoute-v1.4.0-rc.1.zip` for the controller, and `sayroute-bridge-macos-v1.4.0-build20.zip` for the controlled Mac. The preceding v1.3.1 release is a legacy Doubao Murmur build.
 
 Unzip the controller package and place `SayRoute.app` in Applications. If upgrading from Doubao Murmur, **copy any needed recovery text before quitting the old app**, then follow the [migration and rollback guide](docs/sayroute-migration.md). The new bundle identity needs its own Accessibility grant.
 
