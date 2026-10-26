@@ -1,23 +1,28 @@
-# README interface illustration
+# Native README visuals
 
-`sayroute-interface.png` is a code-rendered illustration with sample text, not a captured desktop or evidence of live dictation. It shows the Chinese interface implemented for SayRoute 1.4.0, with English editorial labels for the default README.
+These PNGs render the application's existing SwiftUI/AppKit components with sample state. The controls, fonts, colors, materials and layouts are supplied by production code and macOS, not manually redrawn. README explanations sit outside the images.
 
 ## Regenerate
 
-From the repository root on macOS with the Swift toolchain:
+From the repository root on macOS with Xcode:
 
 ```bash
-swift scripts/render-readme-visual.swift
+scripts/render-native-visuals.sh
 ```
 
-The script draws an offscreen bitmap using AppKit. It does not open an application window, record the screen, switch input methods, access the clipboard or connect to the bridge. Output is 2480 × 1580 PNG. No additional packages are required.
+The script compiles the current application sources without `SayRouteApp.swift`. A documentation-only entry point creates hidden native windows and uses `NSView.cacheDisplay` at 2× resolution. No screen capture, visible window, global hotkey listener, input-source switch, network request or paste delivery is involved. Recovery entries use an in-memory sample store. The overlay's unmodified AppState creates and closes its normal process-scoped empty recovery cache.
 
-## Source mapping
+`RecoveryListView` is private in its source file. The build script copies that file into a temporary build directory and changes only the view's access declaration, leaving its body unchanged. Application source files are never edited by the renderer.
 
-- `SayRoute/OverlayView.swift`: rounded overlay, state dot, 15pt editor text and waiting-for-commit notice.
-- `SayRoute/RecoveryWindow.swift`: recovery window labels, route labels, record structure, Copy/Delete controls and retention explanations.
-- `SayRoute/SessionDraftStore.swift`: unknown-delivery and posted-event status wording.
-- `SayRoute/SayRouteMark.swift`: the selected two-endpoint route mark.
-- `SayRoute/PasteRouter.swift`: local, UU compatibility and UU fast routes.
+## Production components
 
-Window materials and page composition are adapted for clean documentation; this is not a pixel-exact screenshot. Check those owning sources when changing the UI, regenerate, and visually inspect the result before committing it. The generated image and captions are shared by both README languages.
+- `OverlayPanel` creates the panel and its unmodified `OverlayView` / `IMETrackingTextView`; only the sample text and waiting state are supplied.
+- `RecoveryListView` and `RecoveryTextPresentation` render the recovery records using `SessionDraftStore` and real `PasteOutcome` values.
+- The recovery frame uses the same native NSWindow dimensions, style mask and title as `RecoveryWindowController`.
+
+Both `.aqua` and `.darkAqua` appearances are rendered. HTML picture sources select the appropriate version in each README. Windows are unfocused because rendering is offscreen, so native titlebar buttons are inactive. System materials naturally depend on appearance, OS version and the backdrop; these files use a neutral offscreen environment. They document native UI styling, not a real dictation acceptance session.
+
+Files:
+
+- `sayroute-overlay-light.png` / `sayroute-overlay-dark.png`
+- `sayroute-recovery-light.png` / `sayroute-recovery-dark.png`

@@ -10,8 +10,25 @@ A native macOS dictation companion that delivers confirmed text to your local ap
 
 > **1.4.0 RC 1:** controller build21 and SayRoute Bridge build20. [Download the SayRoute preview](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1). Real-input acceptance is pending; this is a prerelease. See [acceptance status](docs/sayroute-acceptance.md). The previous release was Doubao Murmur 1.3.1.
 
-<p align="center"><img src="docs/visuals/sayroute-interface.png" width="1000" alt="SayRoute interface illustration showing dictation, recovery records and three delivery routes"></p>
-<p align="center"><em>Code-rendered illustration of the current dictation and recovery UI, with sample text. The app interface currently uses Chinese.</em></p>
+Rendered directly from the current SwiftUI/AppKit components with sample text; controls are not redrawn. Light and dark variants follow the page theme.
+
+**Dictation overlay:** waits for the input method to commit the final text, retaining it if the wait times out.
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/visuals/sayroute-overlay-dark.png">
+  <img src="docs/visuals/sayroute-overlay-light.png" width="420" alt="Native dictation overlay with sample text">
+</picture>
+</p>
+
+**Recent text and recovery:** shows delivery status and recoverable text. Check the destination before copying an unknown result to avoid duplicate input.
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/visuals/sayroute-recovery-dark.png">
+  <img src="docs/visuals/sayroute-recovery-light.png" width="620" alt="Native recovery window with sample records and Copy and Delete buttons">
+</picture>
+</p>
 
 ## What it does
 

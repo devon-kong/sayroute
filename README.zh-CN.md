@@ -10,8 +10,25 @@
 
 > **1.4.0 RC 1 预发布版**：控制端 build21、SayRoute Bridge build20。[下载 SayRoute 预发布版](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)。真实输入尚待验收，未标为正式版。详见[验收状态](docs/sayroute-acceptance.md)。上一个正式版为 Doubao Murmur 1.3.1。
 
-<p align="center"><img src="docs/visuals/sayroute-interface.png" width="1000" alt="SayRoute 界面示意图：语音输入浮窗、恢复记录与三种投递方式"></p>
-<p align="center"><em>根据当前界面代码绘制的示意图，内容为演示文字。当前应用界面使用中文。</em></p>
+以下图片直接使用当前应用的 SwiftUI／AppKit 组件离屏渲染，填入演示文字；控件没有重新绘制。图片随页面切换浅色／深色版本。
+
+**输入浮窗**：等待输入法提交最终文字；等待超时会保留文字。
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/visuals/sayroute-overlay-dark.png">
+  <img src="docs/visuals/sayroute-overlay-light.png" width="420" alt="当前原生输入浮窗，使用演示文字">
+</picture>
+</p>
+
+**最近文字与恢复**：显示投递状态及可恢复文字。结果未知时先检查目标输入框，避免重复粘贴。
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/visuals/sayroute-recovery-dark.png">
+  <img src="docs/visuals/sayroute-recovery-light.png" width="620" alt="当前原生恢复窗口，显示演示记录与复制、删除按钮">
+</picture>
+</p>
 
 ## 解决什么问题
 
