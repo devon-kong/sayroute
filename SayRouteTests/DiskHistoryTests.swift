@@ -6,7 +6,7 @@ import XCTest
 
 final class RecoveryDiskCacheTests: XCTestCase {
     private func base() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("murmur-disk-tests-\(UUID())")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("sayroute-disk-tests-\(UUID())")
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: url) }
         return url
@@ -84,7 +84,7 @@ final class RecoveryDiskCacheTests: XCTestCase {
 @MainActor
 final class DiskHistoryTests: XCTestCase {
     private func store(now: @escaping () -> Date = Date.init) throws -> SessionDraftStore {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("murmur-history-tests-\(UUID())")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("sayroute-history-tests-\(UUID())")
         let cache = try RecoveryDiskCache(baseDirectory: root)
         addTeardownBlock { cache.close(); try? FileManager.default.removeItem(at: root) }
         return SessionDraftStore(storage: cache, now: now)

@@ -19,7 +19,7 @@ command -v xcodegen >/dev/null || {
 
 full_sha="$(git rev-parse HEAD)"
 helper_build="$(sed -n 's/.*static let build = "\(.*\)"/\1/p' Shared/ModifierDiagnostics.swift)"
-[[ "${helper_build}" == <->.<->.<->\ \(<->\) ]] || { print -u2 "Invalid Mirror version"; exit 1; }
+[[ "${helper_build}" == <->.<->.<->\ \(<->\) ]] || { print -u2 "Invalid SayRoute Bridge version"; exit 1; }
 package_version="$(print -r -- "${helper_build}" | sed -E 's/^([0-9.]+) \(([0-9]+)\)$/\1-build\2/')"
 package_name="sayroute-bridge-macos-v${package_version}${package_suffix}"
 dist_dir="${repo_root}/dist"

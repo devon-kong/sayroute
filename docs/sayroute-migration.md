@@ -44,7 +44,7 @@ Grant Accessibility to the **new remote executable path**, then run `verify.comm
 
 The new update checker targets `devon-kong/sayroute` and assets named `SayRoute-v<version>.zip`. Automatic updates require the same bundle ID and trusted publisher; they do not migrate an old identity to a new one. Current ad-hoc builds require manual installation. Old releases remain historical, with their original names and checksums.
 
-The repository is now named `devon-kong/sayroute`. Source delivery and release publication are separate steps: the default branch contains the migration, while stable release assets remain gated by real-input acceptance. GitHub About: **Native macOS dictation companion for local and remote Macs via NetEase UU. Requires the installed Doubao Input Method.**
+The repository is now named `devon-kong/sayroute`. Source delivery and release publication are separate steps: the default branch contains the migration, while release publication remains a separate action. The operator confirmed the normal local, UU compatibility and UU fast flows on 2026-10-27; detailed coverage is recorded in [acceptance status](sayroute-acceptance.md). GitHub About: **Native macOS dictation companion for local and remote Macs via NetEase UU. Requires the installed Doubao Input Method.**
 
 ## 中文要点
 
@@ -54,3 +54,9 @@ The repository is now named `devon-kong/sayroute`. Source delivery and release p
 - Bridge 安装器先核验再备份、停服务和切换；失败自动恢复。手动回退使用安装器打印的准确备份目录，拒绝覆盖之后的新安装。
 - 控制端 App 和被控端 Bridge 均须重新授予辅助功能权限；不修改系统权限数据库。
 - 新版构建、真实输入验收、GitHub 仓库更名与发布分别记录，不能互相替代。
+
+## Legacy naming policy
+
+Active targets, binaries, test fixtures and diagnostic messages use SayRoute / Bridge. The bridge's developer-only fault-injection variables use the `SAYROUTE_BRIDGE_TEST_` prefix. Old names remain only where they identify the original project or an actual legacy installation: MIT attribution, historical documentation/releases, the one-time preference import, the competing-app guard, and installer handover/rollback fixtures. Do not replace those identity strings: doing so would break legacy detection or migration.
+
+Local legacy release packages and validation evidence may be archived outside the active checkout. Generated build caches can be regenerated; preserve installation/rollback records before retiring a worktree. The existing default branch is `master`.

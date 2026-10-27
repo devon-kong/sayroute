@@ -26,7 +26,7 @@ Read the [migration and rollback guide](https://github.com/devon-kong/sayroute/b
 
 ## Validation boundary
 
-128 hostless Swift tests, six isolated installer transaction tests, universal builds, signature/archive checks and isolated health/invalid-request checks passed during migration. CI for this tag validates the packaged source again. **Real dictation through local, UU compatibility and UU fast routes is still pending**, so this remains a prerelease. See [acceptance status](https://github.com/devon-kong/sayroute/blob/master/docs/sayroute-acceptance.md).
+128 hostless Swift tests, six isolated installer transaction tests, universal builds, signature/archive checks and isolated health/invalid-request checks passed during migration. CI for this tag validates the packaged source again. **The operator confirmed normal local, UU compatibility and UU fast dictation on 2026-10-27**, including post-paste Delete/Space/A and both Command keys. Detailed failure/recovery scenarios remain separately unconfirmed. This published RC remains a prerelease; source acceptance does not publish a stable release. See [acceptance status](https://github.com/devon-kong/sayroute/blob/master/docs/sayroute-acceptance.md).
 
 The bridge remains unauthenticated and loopback-only. Do not expose it to a LAN or public internet. A posted paste event does not prove that an editor inserted the text.
 
@@ -39,5 +39,5 @@ The bridge remains unauthenticated and loopback-only. Do not expose it to a LAN 
 - 控制端下载 `SayRoute-v1.4.0-rc.1.zip`；远端下载 `sayroute-bridge-macos-v1.4.0-build20.zip`。
 - 退出旧版前先复制需要保留的恢复文字；新 App 和 Bridge 均需重新授予辅助功能权限。
 - 安装器提供备份和回退；原 MIT 版权与署名随包保留。
-- 自动测试和双架构构建已通过，真实三条语音输入流程尚待验收，因此没有标为正式版。
+- 自动测试和双架构构建已通过；本机、UU 兼容、UU 快速及粘贴后按键检查已于 2026-10-27 获得用户实测确认。异常恢复等扩展场景单独记录；当前已发布的 RC 包仍为预发布版。
 - [中文安装说明](https://github.com/devon-kong/sayroute/blob/master/packaging/sayroute-bridge/README.zh-CN.md) · [迁移与回退](https://github.com/devon-kong/sayroute/blob/master/docs/sayroute-migration.md)

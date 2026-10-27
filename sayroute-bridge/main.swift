@@ -151,7 +151,7 @@ private final class PasteRequestRegistry {
 
 private let pasteRequestRegistry = PasteRequestRegistry()
 
-private final class MirrorServer {
+private final class BridgeServer {
     private let socketFileDescriptor: Int32
     private let acceptSource: DispatchSourceRead
     private let queue = DispatchQueue(label: "com.devonkong.sayroute.bridge.listener")
@@ -219,7 +219,7 @@ private final class MirrorServer {
                 if connectionFlags >= 0 {
                     _ = fcntl(acceptedFileDescriptor, F_SETFL, connectionFlags & ~O_NONBLOCK)
                 }
-                MirrorConnection(socketFileDescriptor: acceptedFileDescriptor).start()
+                BridgeConnection(socketFileDescriptor: acceptedFileDescriptor).start()
                 continue
             }
             guard errno != EAGAIN && errno != EWOULDBLOCK else { return }
@@ -241,7 +241,7 @@ private enum ServerError: LocalizedError {
     }
 }
 
-private final class MirrorConnection {
+private final class BridgeConnection {
     private let socketFileDescriptor: Int32
     private let queue = DispatchQueue(label: "com.devonkong.sayroute.bridge.connection")
     private var buffer = Data()
@@ -621,22 +621,22 @@ private final class MirrorConnection {
 
     private func applyTestResponseDelayIfRequested() {
         guard let identity = currentPasteIdentity,
-              ProcessInfo.processInfo.environment["MURMUR_MIRROR_TEST_DELAY_REQUEST_ID"] == identity.requestId.uuidString,
-              let raw = ProcessInfo.processInfo.environment["MURMUR_MIRROR_TEST_ACK_DELAY_MS"],
+              ProcessInfo.processInfo.environment["SAYROUTE_BRIDGE_TEST_DELAY_REQUEST_ID"] == identity.requestId.uuidString,
+              let raw = ProcessInfo.processInfo.environment["SAYROUTE_BRIDGE_TEST_ACK_DELAY_MS"],
               let milliseconds = UInt32(raw), milliseconds > 0 else { return }
         usleep(milliseconds * 1_000)
     }
 
     private func applyTestPasteEntryDelayIfRequested(_ identity: PasteOrderIdentity) {
-        guard ProcessInfo.processInfo.environment["MURMUR_MIRROR_TEST_DELAY_PASTE_ENTRY_REQUEST_ID"] == identity.requestId.uuidString,
-              let raw = ProcessInfo.processInfo.environment["MURMUR_MIRROR_TEST_PASTE_ENTRY_DELAY_MS"],
+        guard ProcessInfo.processInfo.environment["SAYROUTE_BRIDGE_TEST_DELAY_PASTE_ENTRY_REQUEST_ID"] == identity.requestId.uuidString,
+              let raw = ProcessInfo.processInfo.environment["SAYROUTE_BRIDGE_TEST_PASTE_ENTRY_DELAY_MS"],
               let milliseconds = UInt32(raw), milliseconds > 0 else { return }
         usleep(milliseconds * 1_000)
     }
 
     private var shouldInjectSendFailure: Bool {
         guard let identity = currentPasteIdentity else { return false }
-        return ProcessInfo.processInfo.environment["MURMUR_MIRROR_TEST_FAIL_SEND_REQUEST_ID"] == identity.requestId.uuidString
+        return ProcessInfo.processInfo.environment["SAYROUTE_BRIDGE_TEST_FAIL_SEND_REQUEST_ID"] == identity.requestId.uuidString
     }
 }
 
@@ -855,7 +855,7 @@ if arguments.contains("--smoke-client") {
 }
 
 do {
-    let server = try MirrorServer(port: port)
+    let server = try BridgeServer(port: port)
     server.start()
     dispatchMain()
 } catch {

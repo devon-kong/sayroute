@@ -1,8 +1,8 @@
 > Historical behavior reference for Doubao Murmur 1.3.1. For current SayRoute identity, paths, installation and verification, see [English README](../README.md), [中文说明](../README.zh-CN.md) and [migration](sayroute-migration.md).
 
-# 当前使用方法与系统流程
+# Doubao Murmur 1.3.1 历史使用方法与系统流程
 
-本文描述正式版 **Doubao Murmur v1.3.1（控制端build20、Mirror build19）**。应用身份为 `com.doubao.murmur`，显示名和可执行文件均为 `Doubao Murmur`。发布说明见[release-notes.md](release-notes.md)。
+本文描述正式版 **Doubao Murmur v1.3.1（控制端build20、Mirror build19）**。应用身份为 `com.doubao.murmur`，显示名和可执行文件均为 `Doubao Murmur`。发布说明见[v1.3.1 历史发布说明](https://github.com/devon-kong/sayroute/blob/v1.3.1/docs/release-notes.md)。
 
 ## 使用方式
 
@@ -53,7 +53,7 @@
 
 菜单中的“剪贴板稳定时间”只影响兼容模式；快速模式下禁用该控件。新录音会取消上一笔尚未执行的本机/兼容粘贴并保留文字，不取消已经发送的快速模式请求。
 
-helper安装、权限和端口映射按[安装说明](../packaging/murmur-mirror/README.md)。Mirror build19采用 `preflight-snapshot-v2`：在发送前准备整个按键对，避免发送Command-V后再读取已受合成事件影响的HID状态并污染抬键。控制端build20包含同一共享修正。本轮位置功能只需更新控制端，Mirror保持build19；HTTP v2和两端 `127.0.0.1:17771` 配置不变。用户已确认Command/Delete基础场景，其他并发时序与多目标场景仍需实测。
+helper安装、权限和端口映射按[安装说明](https://github.com/devon-kong/sayroute/blob/v1.3.1/packaging/murmur-mirror/README.md)。Mirror build19采用 `preflight-snapshot-v2`：在发送前准备整个按键对，避免发送Command-V后再读取已受合成事件影响的HID状态并污染抬键。控制端build20包含同一共享修正。本轮位置功能只需更新控制端，Mirror保持build19；HTTP v2和两端 `127.0.0.1:17771` 配置不变。用户已确认Command/Delete基础场景，其他并发时序与多目标场景仍需实测。
 
 ## 状态与诊断
 

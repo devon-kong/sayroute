@@ -8,7 +8,7 @@ A native macOS dictation companion that delivers confirmed text to your local ap
 
 **English** · [简体中文](README.zh-CN.md)
 
-> **1.4.0 RC 1:** controller build21 and SayRoute Bridge build20. [Download the SayRoute preview](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1). Real-input acceptance is pending; this is a prerelease. See [acceptance status](docs/sayroute-acceptance.md). The previous release was Doubao Murmur 1.3.1.
+> **1.4.0 RC 1:** controller build21 and SayRoute Bridge build20. [Download the SayRoute preview](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1). The operator confirmed local, UU compatibility and UU fast dictation on 2026-10-27. The published download remains a prerelease; extended failure/recovery checks are listed separately. See [acceptance status](docs/sayroute-acceptance.md). The previous release was Doubao Murmur 1.3.1.
 
 Rendered directly from the current SwiftUI/AppKit components with sample text; controls are not redrawn. Light and dark variants follow the page theme.
 

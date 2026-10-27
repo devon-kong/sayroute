@@ -8,7 +8,7 @@
 
 [English](README.md) · **简体中文**
 
-> **1.4.0 RC 1 预发布版**：控制端 build21、SayRoute Bridge build20。[下载 SayRoute 预发布版](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)。真实输入尚待验收，未标为正式版。详见[验收状态](docs/sayroute-acceptance.md)。上一个正式版为 Doubao Murmur 1.3.1。
+> **1.4.0 RC 1 预发布版**：控制端 build21、SayRoute Bridge build20。[下载 SayRoute 预发布版](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)。本机、UU 兼容、UU 快速输入已于 2026-10-27 获得用户实测确认。当前下载仍为预发布包，异常恢复等扩展检查单独记录。详见[验收状态](docs/sayroute-acceptance.md)。上一个正式版为 Doubao Murmur 1.3.1。
 
 以下图片直接使用当前应用的 SwiftUI／AppKit 组件离屏渲染，填入演示文字；控件没有重新绘制。图片随页面切换浅色／深色版本。
 
