@@ -9,8 +9,24 @@ developer_dir="${DEVELOPER_DIR:-$(xcode-select -p)}"
     print -u2 "Full Xcode is required. Set DEVELOPER_DIR to its Contents/Developer directory."
     exit 1
 }
-temporary_root="$(/usr/bin/mktemp -d -t sayroute-app-package)"
-trap '/bin/rm -rf "${temporary_root}"' EXIT
+temp_parent="${TMPDIR:-/tmp}"
+temp_parent="${temp_parent:A}"
+readonly temporary_root="$(/usr/bin/mktemp -d "${temp_parent}/sayroute-app-package.XXXXXXXX")"
+readonly resolved_temporary_root="${temporary_root:A}"
+[[ "${resolved_temporary_root:h}" == "${temp_parent}" && "${resolved_temporary_root:t}" == sayroute-app-package.* ]] || { print -u2 'Unexpected mktemp path'; exit 1; }
+cleanup() {
+    local result=$?
+    if [[ "${temporary_root:A}" == "${resolved_temporary_root}" && "${resolved_temporary_root:h}" == "${temp_parent}" && "${resolved_temporary_root:t}" == sayroute-app-package.* ]]; then
+        /bin/rm -rf -- "${resolved_temporary_root}"
+    else
+        print -u2 'Temporary path changed; refusing cleanup.'
+        result=1
+    fi
+    return "${result}"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' HUP TERM
 xcodegen generate
 DEVELOPER_DIR="${developer_dir}" xcodebuild \
     -project SayRoute.xcodeproj -scheme SayRoute \
@@ -39,7 +55,11 @@ archive="${repo_root}/dist/SayRoute-${RELEASE_TAG:-v${version}}${package_suffix}
 /usr/bin/ditto -x -k "${archive}" "${temporary_root}/verify"
 /usr/bin/codesign --verify --strict --deep "${temporary_root}/verify/SayRoute.app"
 diff -qr "${app}" "${temporary_root}/verify/SayRoute.app"
+# Keep ZIP unchanged for the existing in-app updater; DMG is for manual installs.
+dmg="${archive%.zip}.dmg"
+scripts/create-dmg.sh "${app}" "${dmg}"
 (cd dist && /usr/bin/shasum -a 256 "${archive:t}" > "${archive:t}.sha256")
+(cd dist && /usr/bin/shasum -a 256 "${dmg:t}" > "${dmg:t}.sha256")
 {
     print "source_state=${source_state}"
     print "source_commit=$(git rev-parse HEAD)"
@@ -49,6 +69,14 @@ diff -qr "${app}" "${temporary_root}/verify/SayRoute.app"
     print "architectures=arm64 x86_64"
     print "signature=ad-hoc"
     print "notarized=no"
+    print "formats=zip dmg"
+    print "zip=${archive:t}"
+    print "dmg=${dmg:t}"
+    print "dmg_filesystem=HFS+"
+    print "dmg_format=UDZO"
+    print "dmg_layout=640x420 icons=165,196;475,196 size=96"
+    print "macos_version=$(/usr/bin/sw_vers -productVersion)"
+    print "macos_build=$(/usr/bin/sw_vers -buildVersion)"
 } > "${archive%.zip}.build-info.txt"
 write_source_manifest "${archive%.zip}.sources.sha256"
-print "Created ${archive} (build ${build})"
+print "Created ${archive} and ${dmg} (build ${build})"

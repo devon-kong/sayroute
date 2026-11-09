@@ -95,6 +95,8 @@ scripts/package-sayroute-bridge.sh --candidate
 
 The Python test runner is a development dependency, not an app/installer dependency. Tests use isolated settings and service fixtures; they do not invoke global hotkeys or paste into real apps. Candidate archives include `-candidate` in their names and working-tree provenance. To build release archives from a clean committed tree, omit `--candidate`. CI runs tests and universal packaging; `v*` tags publish only after those jobs succeed. Real dictation acceptance is a separate release gate documented in [acceptance status](docs/sayroute-acceptance.md).
 
+App packaging keeps the updater-compatible ZIP and also creates a drag-to-Applications DMG, SHA-256 checksums, shared build-info and a source manifest. It requires a logged-in Finder session. For an independent DMG-only build/test (without rebuilding the app), layout details and final-build instructions, see [macOS packaging](docs/packaging.md).
+
 ## Origin and license
 
 SayRoute evolved from [lilong7676/doubao-murmur](https://github.com/lilong7676/doubao-murmur). The original copyright and [MIT license](LICENSE) remain. Devon Kong developed the installed-IME session flow, UU routing/bridge, recovery and delivery reliability work; some application, hotkey and update scaffolding derives from the original project. See [attribution and implementation history](ATTRIBUTION.md).

@@ -95,6 +95,8 @@ scripts/package-sayroute-bridge.sh --candidate
 
 Python 仅用于开发测试，应用和安装器不依赖 Python。测试使用隔离偏好与服务夹具，不监听真实全局快捷键或向真实应用粘贴。候选包文件名含 `-candidate` 并附工作区来源信息；正式包须在干净且已提交的源码上省略该参数构建。CI 执行测试与通用构建，`v*` 标签通过后发布。真实语音输入是独立发布验收项，见[验收状态](docs/sayroute-acceptance.md)。
 
+应用打包保留供更新器使用的 ZIP，并新增拖拽到 Applications 安装的 DMG、各自 SHA-256、共用构建信息和源码清单；需要已登录的 Finder 图形会话。无需重编应用的独立 DMG 构建/测试、布局参数和最终打包命令，见 [macOS 打包说明](docs/packaging.md)。
+
 ## 来源与许可
 
 SayRoute 源自 [lilong7676/doubao-murmur](https://github.com/lilong7676/doubao-murmur)，保留原版权与 [MIT 许可证](LICENSE)。Devon Kong 开发了当前输入法会话流程、UU 路由与 Bridge、恢复与可靠投递机制；应用、热键和更新部分框架仍有原项目来源，见[署名与实现历史](ATTRIBUTION.md)。
