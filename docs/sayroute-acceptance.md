@@ -31,7 +31,7 @@ Do not mark a route passed based on construction tests, HTTP ACK, `eventPosted`,
 
 ## Automated evidence location
 
-Local build logs: `/tmp/sayroute-app-build.log`, `/tmp/sayroute-bridge-build.log`; Swift tests `/tmp/sayroute-tests.log`; installer transactions `/tmp/sayroute-installer-tests.log`. Durable copies will accompany the local handoff under `dist/validation/`. `bridge-health-result.json` records the isolated health check. Its Accessibility result belongs to that temporary local process and does not establish permission on the controlled Mac.
+The active checkout retains only current candidate packages and their provenance; superseded build logs, extracted verification copies and old package inventories were removed during workspace cleanup. The local `dist/validation/bridge-health-result.json` and `bridge-health.log` retain the isolated bridge health evidence for build20. Their Accessibility result belongs to that temporary local process and does not establish permission on the controlled Mac. The installation/rollback record linked below is retained because it still applies to the current installation.
 
 Independent review identified a stale failed-install backup rollback defect. A failing regression reproduced it; transaction generation/consumption checks fixed it. Six installer scenarios passed, and read-only re-review closed the finding. Real dictation acceptance was initially deferred until after receiving candidate packages; the operator subsequently confirmed the normal flows on 2026-10-27, as recorded below.
 
