@@ -42,6 +42,7 @@ targets:
           - "$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/sayroute-updater"
     settings:
       base:
+        CURRENT_PROJECT_VERSION: "26"
         INFOPLIST_FILE: SayRoute/Info.plist
         CODE_SIGN_ENTITLEMENTS: SayRoute/SayRoute.entitlements
         CODE_SIGN_IDENTITY: "-"

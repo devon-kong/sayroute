@@ -8,7 +8,7 @@
 
 [English](README.md) · **简体中文**
 
-> **1.4.0 RC 1 预发布版**：控制端 build21、SayRoute Bridge build20。[下载 SayRoute 预发布版](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)。本机、UU 兼容、UU 快速输入已于 2026-10-27 获得用户实测确认。当前下载仍为预发布包，异常恢复等扩展检查单独记录。详见[验收状态](docs/sayroute-acceptance.md)。上一个正式版为 Doubao Murmur 1.3.1。
+> **SayRoute 1.4.0 正式版**支持自定义听写快捷键，也支持多台 Mac 同时使用 UU 快速模式。[下载 macOS 正式版](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0)
 
 以下图片直接使用当前应用的 SwiftUI／AppKit 组件离屏渲染，填入演示文字；控件没有重新绘制。图片随页面切换浅色／深色版本。
 
@@ -50,27 +50,29 @@
 - 通用构建包含 Apple Silicon 和 Intel；编译通过不代表已经完成 Intel 实机验收。
 - 当前使用 ad-hoc 签名，**未做 Apple 公证**；此签名不启用自动安装更新，请核验安装包后手动更新。
 
-下载 [SayRoute 1.4.0 RC 1](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1)：控制端使用 `SayRoute-v1.4.0-rc.1.zip`，被控端使用 `sayroute-bridge-macos-v1.4.0-build20.zip`。此前 v1.3.1 保留为 Doubao Murmur 历史版本。
+控制端下载 `SayRoute-v1.4.0.dmg` 或 `SayRoute-v1.4.0.zip`。使用快速模式时，在被控 Mac 上安装 `sayroute-bridge-macos-v1.4.0-build20.zip`。每个安装包均附 SHA-256 校验文件。[正式版下载](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0)
 
 解压控制端安装包，将 `SayRoute.app` 放入“应用程序”。从 Doubao Murmur 升级时，**先复制需要保留的恢复文字，再退出旧应用**，然后按[迁移与回退说明](docs/sayroute-migration.md) 操作。新 Bundle ID 需要单独授予辅助功能权限。
 
-快速模式须在**被控端**安装配套组件，见 [Bridge 安装说明](packaging/sayroute-bridge/README.zh-CN.md)。服务只监听 loopback；UU 映射为控制端 `127.0.0.1:17771` → 被控端 `127.0.0.1:17771`。
+快速模式须在**被控端**安装配套组件，见 [Bridge 安装说明](packaging/sayroute-bridge/README.zh-CN.md)。每台被控 Mac 的 Bridge 都监听 `127.0.0.1:17771`。控制端 build 26 提供设备列表和连接自检。在 UU 给每台设备分配不同的控制端本地端口（例如 17771、17772），再在 菜单「设备与端口」逐台绑定。首次升级也需要确认已有单机映射。
+
+UU 设备名自动读取，可另外设置本机显示名。快速模式在普通远控窗口出现设备名时建立绑定。两台同时全屏时，在目标窗口按同一个听写键即可；切换桌面不会改变已开始录音的目标。若启动时窗口已经全屏，请暂时退出该窗口的全屏，等设备名显示后再进入全屏。窗口识别使用 UU 的辅助功能通知，无需录屏。浮窗和最近记录显示这次录音锁定的目标。SayRoute 使用 UU 随附的 `uuyc-cli` 和辅助功能识别设备，并在发送前复核连接。重名、未绑定、断开或无法识别时可从「最近文字与恢复」取回。v2 Bridge 支持不报告版本号的旧版；设备改名或更改 UU 映射后，请重新保存绑定。
 
 ## 使用步骤
 
 1. 把光标放到目标输入框；跟随鼠标模式下，将鼠标移到附近。
-2. 按一次 `Control + /`。应用等待热键完全释放、悬浮窗聚焦和豆包输入法就绪，再合成右 Command 开始输入。
+2. 按一次开始快捷键（默认 `Control + /`，可在「设置 → 通用」更改、试按或恢复默认）。应用等待热键完全释放、悬浮窗聚焦和豆包输入法就绪，再合成右 Command 开始输入。
 3. 说完后，**手动按一次物理右 Command** 停止豆包。
 4. 等待输入法下划线消失，应用再冻结并投递最终文字。
 
 | 按键 | 行为 |
 | --- | --- |
-| 空闲时 `Control + /` | 开始 |
-| 录音中 `Control + /` | 忽略 |
+| 空闲时按开始快捷键 | 开始 |
+| 录音中按开始快捷键 | 忽略 |
 | 录音中物理右 Command | 停止手势 |
 | `Esc` | 取消，不复制或粘贴，恢复原输入法 |
 
-菜单提供输入框位置、UU 粘贴模式和剪贴板稳定时间。这三项有效偏好会从旧正式版迁移一次；已有的 SayRoute 设置优先。
+在「设置 → 通用」可查看辅助功能权限、热键监听状态和豆包输入法，必要时重新启用监听。输入框位置、UU 粘贴模式和剪贴板稳定时间也在此调整。「设备与端口」可分别检查 UU 远控连接、Bridge 和远端辅助功能授权。这三项有效偏好会从旧正式版迁移一次；已有的 SayRoute 设置优先。
 
 ## 恢复、隐私与边界
 

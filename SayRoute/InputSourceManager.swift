@@ -18,6 +18,8 @@ final class InputSourceManager {
         return true
     }
 
+    var isDoubaoAvailable: Bool { inputSource(withID: Self.doubaoInputSourceID) != nil }
+
     func selectDoubaoInputSource() -> Bool {
         guard let inputSource = inputSource(withID: Self.doubaoInputSourceID) else {
             return false

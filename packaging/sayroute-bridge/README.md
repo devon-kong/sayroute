@@ -1,12 +1,12 @@
 # SayRoute Bridge
 
-[简体中文](README.zh-CN.md) · Remote helper for SayRoute's UU fast route. Install on the **controlled Mac**; the main app runs on the controller. Current candidate: **1.4.0 (20)**, with controller **1.4.0 (21)**.
+[简体中文](README.zh-CN.md) · Remote helper for SayRoute's UU fast route. Install on the **controlled Mac**; the main app runs on the controller. SayRoute 1.4.0 pairs Bridge **build 20** with controller **build 26**.
 
 1. Copy the entire unzipped package to the controlled Mac. Keep the binary, checksum, scripts, shared script and BUILD-INFO.txt together.
 2. Run `install.command`. It validates the package, backs up the existing installation, stops the old service, retires its LaunchAgent, installs SayRoute Bridge and verifies the new process's health. Failure triggers rollback.
 3. Grant Accessibility to the installed executable below. A new path/signing identity does not inherit the old helper's permission.
 4. Run `verify.command`. Exit 2 means the service is installed but Accessibility still needs attention.
-5. In UU, map controller `127.0.0.1:17771` to controlled Mac `127.0.0.1:17771`. Select fast mode in SayRoute and perform real-input acceptance in a blank editor.
+5. In UU, give each Mac a distinct local mapping port, such as 17771 or 17772. Point each mapping to `127.0.0.1:17771` on its controlled Mac. Register each local port in the controller’s device settings, select fast mode and try dictation in a blank editor.
 
 ```text
 Executable:  ~/Library/Application Support/SayRoute/sayroute-bridge

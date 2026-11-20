@@ -225,31 +225,31 @@ final class StopHotkeyReleaseGateTests: XCTestCase {
     func testSlashThenControlReleaseTriggersExactlyOnce() {
         var gate = StopHotkeyReleaseGate()
 
-        XCTAssertTrue(gate.begin())
-        XCTAssertFalse(gate.begin())
-        XCTAssertEqual(gate.observeSlashRelease(), [.slashReleased])
-        XCTAssertEqual(gate.observeControlRelease(), [.controlReleased, .fullyReleased])
-        XCTAssertEqual(gate.observeControlRelease(), [])
-        XCTAssertEqual(gate.observeSlashRelease(), [])
+        XCTAssertTrue(gate.begin(.standard))
+        XCTAssertFalse(gate.begin(.standard))
+        XCTAssertFalse(gate.fullyReleased(after: .keyUp, keyCode: 44, flags: .maskControl))
+        XCTAssertTrue(gate.fullyReleased(after: .flagsChanged, keyCode: 59, flags: []))
+        XCTAssertFalse(gate.fullyReleased(after: .flagsChanged, keyCode: 59, flags: []))
+        XCTAssertFalse(gate.fullyReleased(after: .keyUp, keyCode: 44, flags: []))
     }
 
     func testControlThenSlashReleaseTriggersExactlyOnce() {
         var gate = StopHotkeyReleaseGate()
 
-        XCTAssertTrue(gate.begin())
-        XCTAssertEqual(gate.observeControlRelease(), [.controlReleased])
-        XCTAssertEqual(gate.observeSlashRelease(), [.slashReleased, .fullyReleased])
+        XCTAssertTrue(gate.begin(.standard))
+        XCTAssertFalse(gate.fullyReleased(after: .flagsChanged, keyCode: 59, flags: []))
+        XCTAssertTrue(gate.fullyReleased(after: .keyUp, keyCode: 44, flags: []))
     }
 
     func testPartialAndRepeatedEventsNeverAuthorizeStop() {
         var gate = StopHotkeyReleaseGate()
 
-        XCTAssertTrue(gate.begin())
-        XCTAssertEqual(gate.observeSlashRelease(), [.slashReleased])
-        XCTAssertEqual(gate.observeSlashRelease(), [])
+        XCTAssertTrue(gate.begin(.standard))
+        XCTAssertFalse(gate.fullyReleased(after: .keyUp, keyCode: 44, flags: .maskControl))
+        XCTAssertFalse(gate.fullyReleased(after: .keyUp, keyCode: 44, flags: .maskControl))
         gate.cancel()
-        XCTAssertEqual(gate.observeControlRelease(), [])
-        XCTAssertEqual(gate.observeSlashRelease(), [])
+        XCTAssertFalse(gate.fullyReleased(after: .flagsChanged, keyCode: 59, flags: []))
+        XCTAssertFalse(gate.fullyReleased(after: .keyUp, keyCode: 44, flags: []))
     }
 }
 
@@ -559,7 +559,7 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(sender: sender)
         let sent = submit("sent", to: coordinator)
         try await sender.waitForRequestCount(1)
-        let cancelledRecording = coordinator.beginRecording()
+        let cancelledRecording = coordinator.beginRecording(destination: destination())
         coordinator.abandonRecording(identity: cancelledRecording, reason: .sessionCancelled)
         XCTAssertEqual(coordinator.state(for: sent.requestId), .sending)
         XCTAssertEqual(coordinator.activeRequestCount, 1)
@@ -575,7 +575,8 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         )
         let coordinator = DirectPasteOrderCoordinator(
             logger: logger,
-            sendOperation: { _, _, _ in
+            verifyTarget: { _ in },
+            sendOperation: { _, _, _, _ in
                 XCTFail("An abandoned recording must not send")
                 throw TestWaitError.timeout
             }
@@ -592,7 +593,7 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         ]
 
         for reason in reasons {
-            let identity = coordinator.beginRecording()
+            let identity = coordinator.beginRecording(destination: destination())
             coordinator.abandonRecording(identity: identity, reason: reason)
             coordinator.abandonRecording(identity: identity, reason: .sessionCancelled)
             XCTAssertEqual(coordinator.state(for: identity.requestId), .cancelled)
@@ -615,7 +616,8 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         let logger = PasteOrderEventLogger(side: "controller-test", databaseURL: FileManager.default.temporaryDirectory.appendingPathComponent("paste-orders-\(UUID().uuidString).sqlite3"))
         let coordinator = DirectPasteOrderCoordinator(
             logger: logger,
-            sendOperation: { text, identity, event in try await sender.send(text: text, identity: identity, transportEvent: event) }
+            verifyTarget: { _ in },
+            sendOperation: { text, identity, _, event in try await sender.send(text: text, identity: identity, transportEvent: event) }
         )
         let identity = submit("milestones", to: coordinator)
         try await sender.waitForRequestCount(1)
@@ -636,9 +638,10 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         )
         let coordinator = DirectPasteOrderCoordinator(
             logger: logger,
-            sendOperation: { _, _, _ in throw TestWaitError.timeout }
+            verifyTarget: { _ in },
+            sendOperation: { _, _, _, _ in throw TestWaitError.timeout }
         )
-        let identity = coordinator.beginRecording()
+        let identity = coordinator.beginRecording(destination: destination())
         let events: [DirectPasteLifecycleEvent] = [
             .focusReady,
             .inputSourceReady,
@@ -661,7 +664,8 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         var outcomes: [UUID: PasteOutcome] = [:]
         let coordinator = DirectPasteOrderCoordinator(
             logger: PasteOrderEventLogger(side: "controller-test", databaseURL: FileManager.default.temporaryDirectory.appendingPathComponent("outcomes-\(UUID()).sqlite3")),
-            sendOperation: { text, identity, event in try await sender.send(text: text, identity: identity, transportEvent: event) },
+            verifyTarget: { _ in },
+            sendOperation: { text, identity, _, event in try await sender.send(text: text, identity: identity, transportEvent: event) },
             onOutcome: { id, outcome in outcomes[id] = outcome }
         )
         let a = submit("第一笔", to: coordinator), b = submit("第二笔", to: coordinator)
@@ -675,8 +679,42 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
         XCTAssertEqual(count, 1)
     }
 
+    private func destination(port: UInt16 = 17771) -> Task<UUTarget, Error> {
+        Task {
+            let connection = UUConnection(deviceId: "test", deviceName: "Test", platform: "mac",
+                connectionState: "connected", isControlling: true, connectionStartTime: "now")
+            return try UUTarget.resolve(labels: ["Test"], connections: [connection],
+                bindings: [UUBinding(deviceId: "test", name: "Test", port: port)])
+        }
+    }
+
+    func testPendingRecordingsKeepTheirCapturedPortAndFailureSendsNothing() async throws {
+        var sent: [UUID: UInt16] = [:]
+        var outcomes: [UUID: PasteOutcome] = [:]
+        let logger = PasteOrderEventLogger(side: "test", databaseURL: FileManager.default.temporaryDirectory
+            .appendingPathComponent("routes-\(UUID()).sqlite3"))
+        let coordinator = DirectPasteOrderCoordinator(logger: logger, verifyTarget: { target in
+            if target.port == 17773 { throw PasteFailureReason.uuDisconnected }
+        }, sendOperation: { _, identity, target, _ in
+            sent[identity.requestId] = target.port
+            throw URLError(.timedOut)
+        }, onOutcome: { outcomes[$0] = $1 })
+        let a = coordinator.beginRecording(destination: destination(port: 17771))
+        let b = coordinator.beginRecording(destination: destination(port: 17772))
+        let offline = coordinator.beginRecording(destination: destination(port: 17773))
+        let unknown = coordinator.beginRecording(destination: Task { throw PasteFailureReason.uuWindowUnidentified })
+        for order in [b, unknown, offline, a] {
+            coordinator.submit(identity: order, text: "sample", targetProcessIdentifier: nil, targetBundleIdentifier: nil)
+        }
+        try await waitUntil { outcomes.count == 4 }
+        XCTAssertEqual(sent, [a.requestId:17771, b.requestId:17772])
+        XCTAssertEqual(outcomes[unknown.requestId], .notSent(.uuWindowUnidentified))
+        XCTAssertEqual(outcomes[offline.requestId], .notSent(.uuDisconnected))
+        XCTAssertEqual(outcomes[a.requestId], .unknown(.transportUnknown))
+    }
+
     private func submit(_ text: String, to coordinator: DirectPasteOrderCoordinator) -> PasteOrderIdentity {
-        let identity = coordinator.beginRecording()
+        let identity = coordinator.beginRecording(destination: destination())
         coordinator.transcriptionReady(identity: identity, textLength: text.count)
         coordinator.submit(identity: identity, text: text, targetProcessIdentifier: 1, targetBundleIdentifier: "target")
         return identity
@@ -684,7 +722,8 @@ final class DirectPasteOrderCoordinatorTests: XCTestCase {
     private func makeCoordinator(sender: ControllableOrderSender, countChanged: @escaping (Int) -> Void = { _ in }) -> DirectPasteOrderCoordinator {
         DirectPasteOrderCoordinator(
             logger: PasteOrderEventLogger(side: "controller-test", databaseURL: FileManager.default.temporaryDirectory.appendingPathComponent("paste-orders-\(UUID().uuidString).sqlite3")),
-            sendOperation: { text, identity, event in try await sender.send(text: text, identity: identity, transportEvent: event) },
+            verifyTarget: { _ in },
+            sendOperation: { text, identity, _, event in try await sender.send(text: text, identity: identity, transportEvent: event) },
             onUnconfirmedCountChanged: countChanged
         )
     }

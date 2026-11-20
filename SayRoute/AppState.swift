@@ -18,12 +18,14 @@ class AppState: ObservableObject {
 
     @Published var recordingState: RecordingState = .idle
     @Published var transcriptionText: String = ""
+    @Published var destinationLabel: String?
     @Published var errorMessage: String?
 
     func reset() {
         recordingState = .idle
         isWaitingForCommit = false
         transcriptionText = ""
+        destinationLabel = nil
         errorMessage = nil
     }
 }

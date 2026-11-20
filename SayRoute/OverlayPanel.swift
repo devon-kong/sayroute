@@ -78,8 +78,8 @@ class OverlayPanel: NSPanel {
 
     func showOverlay(placement: OverlayPlacementContext, onFocusReady: @escaping (Bool) -> Void) {
         self.placement = placement
-        requestedHeight = 76
-        setFrame(placement.frame(height: 76, displays: OverlayDisplay.current), display: true)
+        requestedHeight = appState.destinationLabel == nil ? 76 : 96
+        setFrame(placement.frame(height: requestedHeight, displays: OverlayDisplay.current), display: true)
         orderFrontRegardless()
         requestTextInputFocus(onReady: onFocusReady)
         print("[OverlayPanel] ✅ Overlay is now visible (isVisible=\(isVisible), isKeyWindow=\(isKeyWindow))")

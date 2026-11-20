@@ -1,43 +1,25 @@
-# SayRoute 1.4.0 RC 1
+# SayRoute 1.4.0
 
-**Preview release / 预发布版本** — controller **1.4.0 (21)**, bridge **1.4.0 (20)**.
+SayRoute delivers dictation from the Doubao Input Method to local apps and to Macs controlled through NetEase UU. This release pairs controller build 26 with SayRoute Bridge build 20. Both run on Apple Silicon and Intel Macs with macOS 13 or later.
 
-SayRoute is the new product identity of the macOS dictation companion previously called Doubao Murmur. It delivers text from the installed Doubao Input Method to local apps or a remote Mac through NetEase UU.
+## What changed
 
-## Downloads
+- Set, test or reset the start shortcut in Settings → General. The default is Control + /.
+- Assign each Mac a distinct local UU port under 设备与端口. Fast mode locks the destination when dictation starts, including when two remote sessions occupy different fullscreen Spaces on the same display.
+- The overlay and recovery history show the selected device. If a connection changes or the window cannot be identified, the text remains available in recovery. If SayRoute first sees an already-fullscreen window, leave fullscreen until the UU device name appears and then return.
 
-- `SayRoute-v1.4.0-rc.1.zip`: controller app; unzip and place **SayRoute.app** in Applications.
-- `sayroute-bridge-macos-v1.4.0-build20.zip`: companion for the **controlled Mac**; unzip the complete directory and run `install.command`.
-- SHA-256 files and build/source manifests accompany the packages. Both executables include arm64 and x86_64.
+## Installation
 
-## Changes
+Install the controller from `SayRoute-v1.4.0.dmg` or `SayRoute-v1.4.0.zip`. For fast mode, install `sayroute-bridge-macos-v1.4.0-build20.zip` on the controlled Mac. An existing compatible v2 Bridge can keep using its configured loopback mapping. Each download includes a separate SHA-256 checksum.
 
-- New SayRoute app, icon, bundle ID, bridge/updater names and release filenames.
-- One-time validated import of three preferences, with existing SayRoute values taking priority.
-- Keeps old data and app files available for rollback; blocks competing old/new hotkey listeners.
-- Bridge installation verifies its service/build/PID, backs up existing state and supports generation-safe rollback.
-- English-first README, Chinese counterpart and preserved upstream MIT attribution, included in the packages.
+Copy any temporary recovery text you want to keep before quitting the previous controller. The recovery key lasts for the current process only. These packages use ad-hoc signatures and require manual installation. Apple notarization is unavailable for this build. Grant Accessibility to the installed controller and remote Bridge.
 
-## Before installing
-
-Copy any recovery text you need **before quitting the old app**; its encryption key does not survive exit. Grant Accessibility to the new app and the new remote bridge path. These ad-hoc signed packages are not notarized and require manual installation.
-
-Read the [migration and rollback guide](https://github.com/devon-kong/sayroute/blob/master/docs/sayroute-migration.md) and [bridge installation guide](https://github.com/devon-kong/sayroute/blob/master/packaging/sayroute-bridge/README.md).
-
-## Validation boundary
-
-128 hostless Swift tests, six isolated installer transaction tests, universal builds, signature/archive checks and isolated health/invalid-request checks passed during migration. CI for this tag validates the packaged source again. **The operator confirmed normal local, UU compatibility and UU fast dictation on 2026-10-27**, including post-paste Delete/Space/A and both Command keys. Detailed failure/recovery scenarios remain separately unconfirmed. This published RC remains a prerelease; source acceptance does not publish a stable release. See [acceptance status](https://github.com/devon-kong/sayroute/blob/master/docs/sayroute-acceptance.md).
-
-The bridge remains unauthenticated and loopback-only. Do not expose it to a LAN or public internet. A posted paste event does not prove that an editor inserted the text.
-
----
+[Migration and rollback](https://github.com/devon-kong/sayroute/blob/v1.4.0/docs/sayroute-migration.md) · [Bridge installation](https://github.com/devon-kong/sayroute/blob/v1.4.0/packaging/sayroute-bridge/README.md)
 
 ## 中文说明
 
-这是 **SayRoute 1.4.0 RC 1 预发布版**，包含新名称、新图标及新的安装包。控制端为 build21，远端 Bridge 为 build20。原豆包输入法依赖不变。
+控制端 build 26 支持自定义快捷键。多台 Mac 同时远控时，每台使用独立的 UU 本地端口，在目标窗口按同一个快捷键即可。录音开始时锁定设备，切换桌面不会改变本句的去向。若启动 SayRoute 时窗口已经全屏，请暂时退出全屏，待 UU 显示设备名后再返回。
 
-- 控制端下载 `SayRoute-v1.4.0-rc.1.zip`；远端下载 `sayroute-bridge-macos-v1.4.0-build20.zip`。
-- 退出旧版前先复制需要保留的恢复文字；新 App 和 Bridge 均需重新授予辅助功能权限。
-- 安装器提供备份和回退；原 MIT 版权与署名随包保留。
-- 自动测试和双架构构建已通过；本机、UU 兼容、UU 快速及粘贴后按键检查已于 2026-10-27 获得用户实测确认。异常恢复等扩展场景单独记录；当前已发布的 RC 包仍为预发布版。
-- [中文安装说明](https://github.com/devon-kong/sayroute/blob/master/packaging/sayroute-bridge/README.zh-CN.md) · [迁移与回退](https://github.com/devon-kong/sayroute/blob/master/docs/sayroute-migration.md)
+控制端下载 DMG 或 ZIP。快速模式使用 Bridge build 20，已有兼容的 v2 Bridge 可继续使用。替换应用前，请先复制需要保留的临时恢复文字。安装后若快捷键未就绪，请在系统设置的「隐私与安全性 → 辅助功能」中允许「应用程序」里的 SayRoute。
+
+[中文安装说明](https://github.com/devon-kong/sayroute/blob/v1.4.0/packaging/sayroute-bridge/README.zh-CN.md)

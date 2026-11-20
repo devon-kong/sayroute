@@ -8,6 +8,17 @@ struct RemoteClipboardClient {
     private let baseURL: URL
     private let session: URLSession
 
+    // A redirect can move a POST (including its body) to a different mapped
+    // device. Only the endpoint captured for this recording may receive it.
+    private final class FixedEndpointDelegate: NSObject, URLSessionTaskDelegate {
+        func urlSession(_ session: URLSession, task: URLSessionTask,
+                        willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+                        completionHandler: @escaping (URLRequest?) -> Void) {
+            completionHandler(nil)
+        }
+    }
+    private static let fixedEndpoint = FixedEndpointDelegate()
+
     private static let defaultSession: URLSession = {
         let configuration = URLSessionConfiguration.default
         // Human-paced dictation can still have several outstanding ACKs. Keep
@@ -17,22 +28,24 @@ struct RemoteClipboardClient {
         return URLSession(configuration: configuration)
     }()
 
-    init(baseURL: URL = URL(string: "http://127.0.0.1:17771")!, session: URLSession? = nil) {
+    init(baseURL: URL, session: URLSession? = nil) {
         self.baseURL = baseURL
         self.session = session ?? Self.defaultSession
     }
 
-    func health() async throws {
+    @discardableResult
+    func health() async throws -> BridgeHealth {
         let (data, response) = try await send(method: "GET", path: "/health", body: nil)
         guard response.statusCode == 200 else {
             throw RemoteClipboardClientError.unexpectedStatus(response.statusCode)
         }
 
-        let health = try JSONDecoder().decode(HealthResponse.self, from: data)
+        let health = try JSONDecoder().decode(BridgeHealth.self, from: data)
         guard health.ok else { throw RemoteClipboardClientError.rejected }
         guard health.protocolVersion == Self.protocolVersion else {
             throw RemoteClipboardClientError.unsupportedProtocol(health.protocolVersion)
         }
+        return health
     }
 
     @discardableResult
@@ -109,13 +122,14 @@ struct RemoteClipboardClient {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 3
+        if method == "GET" { request.cachePolicy = .reloadIgnoringLocalCacheData }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request, delegate: Self.fixedEndpoint)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw RemoteClipboardClientError.invalidResponse
         }
@@ -147,9 +161,11 @@ struct RemotePasteAcknowledgement: Decodable {
     let targetBundleIdentifier: String?
 }
 
-private struct HealthResponse: Decodable {
+struct BridgeHealth: Decodable, Equatable {
     let ok: Bool
     let protocolVersion: Int
+    let accessibilityTrusted: Bool?
+    let helperBuild: String?
 }
 
 private struct ClipboardRequest: Encodable {

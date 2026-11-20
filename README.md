@@ -8,7 +8,7 @@ A native macOS dictation companion that delivers confirmed text to your local ap
 
 **English** · [简体中文](README.zh-CN.md)
 
-> **1.4.0 RC 1:** controller build21 and SayRoute Bridge build20. [Download the SayRoute preview](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1). The operator confirmed local, UU compatibility and UU fast dictation on 2026-10-27. The published download remains a prerelease; extended failure/recovery checks are listed separately. See [acceptance status](docs/sayroute-acceptance.md). The previous release was Doubao Murmur 1.3.1.
+> **SayRoute 1.4.0** includes configurable dictation shortcuts and per-device UU fast routing for multiple Macs. [Download the macOS release](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0)
 
 Rendered directly from the current SwiftUI/AppKit components with sample text; controls are not redrawn. Light and dark variants follow the page theme.
 
@@ -50,27 +50,29 @@ Rendered directly from the current SwiftUI/AppKit components with sample text; c
 - Universal builds include Apple Silicon and Intel slices. Runtime acceptance on Intel is not established by compilation.
 - Packages use ad-hoc signing and are **not Apple-notarized**. Automatic installation stays disabled for these signatures; update manually using a verified package.
 
-Download [SayRoute 1.4.0 RC 1](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0-rc.1): `SayRoute-v1.4.0-rc.1.zip` for the controller, and `sayroute-bridge-macos-v1.4.0-build20.zip` for the controlled Mac. The preceding v1.3.1 release is a legacy Doubao Murmur build.
+Install the controller from `SayRoute-v1.4.0.dmg` or `SayRoute-v1.4.0.zip`. For fast mode, use `sayroute-bridge-macos-v1.4.0-build20.zip` on the controlled Mac. SHA-256 checksums accompany each download. [Release downloads](https://github.com/devon-kong/sayroute/releases/tag/v1.4.0)
 
 Unzip the controller package and place `SayRoute.app` in Applications. If upgrading from Doubao Murmur, **copy any needed recovery text before quitting the old app**, then follow the [migration and rollback guide](docs/sayroute-migration.md). The new bundle identity needs its own Accessibility grant.
 
-For fast mode, install the companion package on the **controlled Mac** using the [bridge guide](packaging/sayroute-bridge/README.md). Keep the service on loopback; configure UU to map controller `127.0.0.1:17771` to controlled Mac `127.0.0.1:17771`.
+For fast mode, install the companion package on the **controlled Mac** using the [bridge guide](packaging/sayroute-bridge/README.md). Keep each Bridge on `127.0.0.1:17771`. In controller build 26, give each Mac a distinct local port in UU (such as 17771 or 17772), then register the ports in the SayRoute menu under **设备与端口**. Confirm existing single-Mac mappings once when upgrading.
+
+UU supplies the device name automatically. You can give it a local display name. Fast mode learns the device when its name appears in a regular UU window. With two fullscreen sessions, press the same hotkey in the desired window. Switching Spaces during dictation keeps the original target. If SayRoute starts after a window is already fullscreen, leave fullscreen until its device name appears, then return. Window detection uses Accessibility notifications and needs no screen recording. The overlay and recovery history show the destination captured for that recording. SayRoute uses the bundled UU CLI and Accessibility to match the window to a connected device and rechecks the connection before sending. Unidentified, ambiguous, disconnected or unbound destinations leave the text in recovery. Older v2 Bridges can omit build information. Save the binding again after renaming a device or changing its UU mapping.
 
 ## Dictate
 
 1. Put the caret in the destination field. For a pointer-following panel, position the pointer nearby.
-2. Press `Control + /` once. SayRoute waits for the shortcut to be released, the panel to focus and Doubao IME to become ready, then sends right Command to start dictation.
+2. Press the start shortcut once (default `Control + /`; record, test, or reset it in Settings → General). SayRoute waits for the shortcut to be released, the panel to focus and Doubao IME to become ready, then sends right Command to start dictation.
 3. Speak, then **physically press right Command once** to stop Doubao dictation.
 4. SayRoute waits for the IME's underlined composition to finish before freezing and delivering the text.
 
 | Key | Action |
 | --- | --- |
-| `Control + /` while idle | Start |
-| `Control + /` while recording | Ignored |
+| Start shortcut while idle | Start |
+| Start shortcut while recording | Ignored |
 | Physical right Command while recording | Stop gesture |
 | `Esc` | Cancel without copying or pasting; restore the previous input source |
 
-The menu offers panel position, UU paste route and clipboard settling time. These three preferences migrate once from the old official app when valid; existing SayRoute preferences win.
+Settings → General shows Accessibility permission, the actual global shortcut listener state with a retry action, and Doubao input-source availability. Devices & Ports checks the UU connection, Bridge health and remote Accessibility separately. General also offers panel position, UU paste route and clipboard settling time. These three preferences migrate once from the old official app when valid; existing SayRoute preferences win.
 
 ## Recovery, privacy and limits
 

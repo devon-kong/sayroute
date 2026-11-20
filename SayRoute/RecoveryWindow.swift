@@ -67,25 +67,38 @@ private struct RecoveryListView: View {
     @ObservedObject var store: SessionDraftStore
     @ObservedObject var presentation: RecoveryTextPresentation
     @State private var copyMessage = ""
+    @State private var selectedDestination: RecoveryDestinationID?
 
     var body: some View {
+        let entries = Array(store.visibleEntries.reversed())
+        let choices = destinationChoices(in: entries)
         VStack(alignment: .leading, spacing: 12) {
             Text("文字按需从加密临时文件读取，退出或重启后不恢复。")
                 .font(.callout).foregroundColor(.secondary)
             Text("最多20条、最长3天。打开窗口清除已有提醒，失败状态和记录仍保留。")
                 .font(.caption).foregroundColor(.secondary)
-            if store.visibleEntries.isEmpty {
+            if choices.count > 1 {
+                Picker("目标", selection: $selectedDestination) {
+                    Text("全部目标").tag(nil as RecoveryDestinationID?)
+                    ForEach(choices, id: \.destinationID) { entry in
+                        Text(entry.destinationLabel(among: entries)).tag(Optional(entry.destinationID))
+                    }
+                }
+                .pickerStyle(.menu)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if entries.isEmpty {
                 Spacer()
                 Text("暂无可恢复的文字").frame(maxWidth: .infinity).foregroundColor(.secondary)
                 Spacer()
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
-                        ForEach(store.visibleEntries.reversed()) { entry in
+                        ForEach(entries.filter { selectedDestination == nil || $0.destinationID == selectedDestination }) { entry in
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Text(entry.createdAt, style: .time).font(.caption)
-                                    Text(routeLabel(entry.route)).font(.caption).foregroundColor(.secondary)
+                                    Text(entry.destinationLabel(among: entries)).font(.caption).foregroundColor(.secondary)
                                     Spacer()
                                     Button("复制") {
                                         copyMessage = store.copy(id: entry.id, using: PasteHelper.copyOnly)
@@ -126,14 +139,17 @@ private struct RecoveryListView: View {
                 .accessibilityLabel(copyMessage)
         }
         .padding(18)
+        .onChange(of: choices.map(\.destinationID)) { ids in
+            if let selectedDestination, ids.count < 2 || !ids.contains(selectedDestination) {
+                self.selectedDestination = nil
+            }
+        }
     }
 
-    private func routeLabel(_ route: PasteRoute) -> String {
-        switch route {
-        case .local: return "本机"
-        case .uuCompatibility: return "UU 兼容模式"
-        case .uuDirect: return "UU 快速模式"
-        }
+    // The newest recorded alias represents each device in the picker.
+    private func destinationChoices(in entries: [RecoveryEntry]) -> [RecoveryEntry] {
+        var seen = Set<RecoveryDestinationID>()
+        return entries.filter { seen.insert($0.destinationID).inserted }
     }
 }
 

@@ -2,7 +2,7 @@ import Combine
 import Foundation
 
 /// Closed vocabulary: never attach transcription or an arbitrary NSError string.
-enum PasteFailureReason: String, Equatable {
+enum PasteFailureReason: String, Error, Equatable {
     case missingMarkedText = "missing_marked_text"
     case missingKeyUp = "missing_key_up"
     case commitPending = "commit_pending"
@@ -20,8 +20,19 @@ enum PasteFailureReason: String, Equatable {
     case acknowledgementInvalid = "acknowledgement_invalid"
     case modifiersHeld = "modifiers_held"
 
+    case uuFullscreenNeedsName = "uu_fullscreen_needs_name"
+    case uuWindowUnidentified = "uu_window_unidentified"
+    case uuInvalidBinding = "uu_invalid_binding"
+    case uuDisconnected = "uu_session_disconnected"
+    case uuStatusUnavailable = "uu_status_unavailable"
+
     var message: String {
         switch self {
+        case .uuFullscreenNeedsName: return "请暂时退出这个 UU 窗口的全屏，待设备名显示后再进入全屏。此句可从最近文字与恢复复制。"
+        case .uuWindowUnidentified: return "无法唯一识别 UU 远控窗口，请确认设备名称唯一，并点进远控画面"
+        case .uuInvalidBinding: return "设备端口未绑定、重复或已更改，请检查“设备与端口”"
+        case .uuDisconnected: return "录音开始时的 UU 连接已断开或重连"
+        case .uuStatusUnavailable: return "无法读取 UU 设备状态，请检查 UU 是否已运行及其命令行工具是否可用"
         case .missingMarkedText: return "未观察到输入法提交过程"
         case .missingKeyUp: return "未确认停止键已抬起"
         case .commitPending: return "等待输入法提交超时"
@@ -76,6 +87,16 @@ enum DraftDelivery: Equatable {
     }
 }
 
+struct RecordedUUDevice: Equatable {
+    let id: String
+    let displayName: String
+}
+
+enum RecoveryDestinationID: Hashable {
+    case local, uuCompatibility, unconfirmedUU
+    case uuDevice(String)
+}
+
 struct RecoveryEntry: Identifiable, Equatable {
     let id: UUID
     let route: PasteRoute
@@ -84,6 +105,32 @@ struct RecoveryEntry: Identifiable, Equatable {
     var committed = false
     var delivery: DraftDelivery = .recording
     var isUnreadFailure = false
+    fileprivate(set) var device: RecordedUUDevice?
+
+    var destinationID: RecoveryDestinationID {
+        switch route {
+        case .local: return .local
+        case .uuCompatibility: return .uuCompatibility
+        case .uuDirect: return device.map { .uuDevice($0.id) } ?? .unconfirmedUU
+        }
+    }
+
+    var destinationLabel: String {
+        switch route {
+        case .local: return "本机"
+        case .uuCompatibility: return "UU 兼容模式"
+        case .uuDirect: return "UU 快速模式 · " + (device?.displayName ?? "目标未确认")
+        }
+    }
+
+    func destinationLabel(among entries: [RecoveryEntry]) -> String {
+        guard let device else { return destinationLabel }
+        let others = entries.filter { $0.destinationID != destinationID && $0.destinationLabel == destinationLabel }
+        guard !others.isEmpty else { return destinationLabel }
+        let suffix = String(device.id.suffix(6))
+        let identifier = others.contains { $0.device?.id.hasSuffix(suffix) == true } ? device.id : suffix
+        return "\(destinationLabel)（\(identifier)）"
+    }
 }
 
 /// Only small metadata lives here. Original history text is read on demand.
@@ -134,6 +181,13 @@ final class SessionDraftStore: ObservableObject {
             storageError = "无法准备临时记录，请检查磁盘空间或权限。"
             return false
         }
+    }
+
+    /// The lookup may finish after delivery or after a new recording began.
+    func recordTarget(_ target: UUTarget, for id: UUID) {
+        guard let index = entries.firstIndex(where: { $0.id == id }),
+              entries[index].route == .uuDirect, entries[index].device == nil else { return }
+        entries[index].device = RecordedUUDevice(id: target.deviceId, displayName: target.displayName)
     }
 
     /// Called only when a session freezes or fails, not for every recognition update.

@@ -39,10 +39,13 @@ final class DirectPasteOrderCoordinator {
     typealias SendOperation = (
         _ text: String,
         _ identity: PasteOrderIdentity,
+        _ target: UUTarget,
         _ transportEvent: @escaping (RemoteClipboardTransportEvent) -> Void
     ) async throws -> RemotePasteAcknowledgement
 
     private let logger: PasteOrderEventLogger
+    private let verifyTarget: (UUTarget) async throws -> Void
+    private var destinations: [UUID: Task<UUTarget, Error>] = [:]
     private let sendOperation: SendOperation
     private let onUnconfirmedCountChanged: (Int) -> Void
     private let onOutcome: (UUID, PasteOutcome) -> Void
@@ -56,8 +59,12 @@ final class DirectPasteOrderCoordinator {
     init(
         logger: PasteOrderEventLogger,
         controllerSessionId: UUID = UUID(),
-        sendOperation: @escaping SendOperation = { text, identity, transportEvent in
-            try await RemoteClipboardClient().paste(
+        verifyTarget: @escaping (UUTarget) async throws -> Void = { target in
+            let connections = try await UUDevices.connections()
+            try target.validate(connections: connections, bindings: UUBindingStore().bindings)
+        },
+        sendOperation: @escaping SendOperation = { text, identity, target, transportEvent in
+            try await RemoteClipboardClient(baseURL: target.url).paste(
                 text: text,
                 identity: identity,
                 onTransportEvent: transportEvent
@@ -68,17 +75,19 @@ final class DirectPasteOrderCoordinator {
     ) {
         self.logger = logger
         self.controllerSessionId = controllerSessionId
+        self.verifyTarget = verifyTarget
         self.sendOperation = sendOperation
         self.onUnconfirmedCountChanged = onUnconfirmedCountChanged
         self.onOutcome = onOutcome
     }
 
-    func beginRecording(requestId: UUID = UUID()) -> PasteOrderIdentity {
+    func beginRecording(requestId: UUID = UUID(), destination: Task<UUTarget, Error>) -> PasteOrderIdentity {
         let identity = PasteOrderIdentity(
             requestId: requestId,
             controllerSessionId: controllerSessionId,
             sequence: nextSequence
         )
+        destinations[requestId] = destination
         nextSequence += 1
         states[identity.requestId] = .recording
         logger.capture(
@@ -119,7 +128,8 @@ final class DirectPasteOrderCoordinator {
         targetProcessIdentifier: Int32?,
         targetBundleIdentifier: String?
     ) {
-        guard states[identity.requestId] == .recording, !text.isEmpty else { return }
+        guard states[identity.requestId] == .recording, !text.isEmpty,
+              let destination = destinations.removeValue(forKey: identity.requestId) else { return }
         states[identity.requestId] = .created
         logger.capture(
             identity: identity,
@@ -133,17 +143,21 @@ final class DirectPasteOrderCoordinator {
 
         let requestId = identity.requestId
         activeIdentities[requestId] = identity
-        tasks[requestId] = Task { [weak self, logger = self.logger, sendOperation = self.sendOperation] in
-            logger.capture(
-                identity: identity,
-                event: "http_send_started",
-                protocolVersion: RemoteClipboardClient.protocolVersion,
-                textLength: text.count,
-                targetProcessIdentifier: targetProcessIdentifier,
-                targetBundleIdentifier: targetBundleIdentifier
-            )
+        tasks[requestId] = Task { [weak self, logger = self.logger, sendOperation = self.sendOperation, verifyTarget = self.verifyTarget] in
             do {
-                let acknowledgement = try await sendOperation(text, identity) { transportEvent in
+                let target = try await destination.value
+                try Task.checkCancellation()
+                try await verifyTarget(target)
+                try Task.checkCancellation()
+                logger.capture(
+                    identity: identity,
+                    event: "http_send_started",
+                    protocolVersion: RemoteClipboardClient.protocolVersion,
+                    textLength: text.count,
+                    targetProcessIdentifier: targetProcessIdentifier,
+                    targetBundleIdentifier: targetBundleIdentifier
+                )
+                let acknowledgement = try await sendOperation(text, identity, target) { transportEvent in
                     switch transportEvent {
                     case let .responseReceived(status, duration):
                         logger.capture(
@@ -191,11 +205,12 @@ final class DirectPasteOrderCoordinator {
                         errorCode: Int32(URLError.timedOut.rawValue)
                     )
                 }
-                self.states[requestId] = .unconfirmed
+                let blocked = error is PasteFailureReason
+                self.states[requestId] = blocked ? .cancelled : .unconfirmed
                 let nsErrorCode = (error as NSError).code
                 self.logger.capture(
                     identity: identity,
-                    event: "unconfirmed",
+                    event: blocked ? "target_unavailable" : "unconfirmed",
                     protocolVersion: RemoteClipboardClient.protocolVersion,
                     textLength: text.count,
                     errorCode: (Int(Int32.min)...Int(Int32.max)).contains(nsErrorCode) ? Int32(nsErrorCode) : nil,
@@ -206,7 +221,7 @@ final class DirectPasteOrderCoordinator {
                 self.publishUnconfirmedCount()
                 self.onOutcome(requestId, Self.outcome(for: error))
                 self.pruneTerminal(requestId)
-                print("[DirectPasteOrderCoordinator] Paste event unconfirmed requestId=\(requestId.uuidString); later orders remain enabled")
+
             }
         }
     }
@@ -216,6 +231,7 @@ final class DirectPasteOrderCoordinator {
         reason: DirectPasteCancellationReason
     ) {
         guard states[identity.requestId] == .recording else { return }
+        destinations.removeValue(forKey: identity.requestId)?.cancel()
         states[identity.requestId] = .cancelled
         logger.capture(
             identity: identity,
@@ -228,6 +244,8 @@ final class DirectPasteOrderCoordinator {
 
     /// Direct HTTP work is cancelled only during actual application shutdown.
     func cancelAllForShutdown() {
+        for destination in destinations.values { destination.cancel() }
+        destinations.removeAll()
         for (requestId, task) in tasks {
             guard let identity = identityForActiveRequest(requestId) else {
                 task.cancel()
@@ -266,6 +284,7 @@ final class DirectPasteOrderCoordinator {
     }
 
     static func outcome(for error: Error) -> PasteOutcome {
+        if let reason = error as? PasteFailureReason { return .notSent(reason) }
         if let url = error as? URLError {
             if url.code == .cannotConnectToHost { return .notSent(.connectionUnavailable) }
             return .unknown(.transportUnknown)

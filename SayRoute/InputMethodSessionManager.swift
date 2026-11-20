@@ -240,6 +240,7 @@ final class InputMethodSessionManager {
     private let appState: AppState
     private let overlayPanel: OverlayPanel
     private let hotkeyManager: HotkeyManager
+    private let uuWindows = UUWindowObserver()
     private let pasteOrderEventLogger: PasteOrderEventLogger
     private lazy var directPasteOrderCoordinator = DirectPasteOrderCoordinator(
         logger: pasteOrderEventLogger,
@@ -314,12 +315,14 @@ final class InputMethodSessionManager {
         }
         hotkeyManager.setEscapeHandlingEnabled(false)
         hotkeyManager.start()
+        uuWindows.start()
         print("[InputMethodSessionManager] ✅ IME bridge started")
     }
 
     func stop() {
         cancelSession()
         directPasteOrderCoordinator.cancelAllForShutdown()
+        uuWindows.stop()
         hotkeyManager.stop()
         appState.drafts.clearForShutdown()
     }
@@ -370,15 +373,34 @@ final class InputMethodSessionManager {
         // Capture the destination at recording start. Do not infer it from a
         // window title or from whichever process is frontmost after dictation.
         pasteTargetApp = previousFrontmostApp
-        NSApp.activate(ignoringOtherApps: true)
         let route = PasteRouter().route(for: pasteTargetApp)
         currentPasteRoute = route
         if route == .uuDirect {
-            currentDirectPasteIdentity = directPasteOrderCoordinator.beginRecording(requestId: generation)
+            let capturedDestination = uuWindows.capture(for: pasteTargetApp)
+            let destination = Task<UUTarget, Error> { [weak self] in
+                let target = try await capturedDestination.value
+                // Record the original target even when its lookup outlives this overlay.
+                self?.appState.drafts.recordTarget(target, for: generation)
+                try Task.checkCancellation()
+                return target
+            }
+            currentDirectPasteIdentity = directPasteOrderCoordinator.beginRecording(requestId: generation, destination: destination)
+            appState.destinationLabel = "正在识别 UU 设备…"
+            Task { [weak self] in
+                let result = await destination.result
+                guard let self, self.sessionGeneration == generation, self.currentDirectPasteIdentity != nil else { return }
+                switch result {
+                case let .success(target): self.appState.destinationLabel = "发往 \(target.displayName)"
+                case .failure(let error):
+                    self.appState.destinationLabel = (error as? PasteFailureReason) == .uuFullscreenNeedsName
+                        ? "请退出全屏一次 · 本句将保留" : "目标未确认 · 本句将保留"
+                }
+            }
         } else {
             currentDirectPasteIdentity = nil
         }
 
+        NSApp.activate(ignoringOtherApps: true)
         traceSequence += 1
         traceIdentities[generation] = currentDirectPasteIdentity ?? PasteOrderIdentity(
             requestId: generation, controllerSessionId: traceProcessID, sequence: traceSequence
@@ -394,6 +416,7 @@ final class InputMethodSessionManager {
             sessionPlacements.removeValue(forKey: generation)
             currentDirectPasteIdentity = nil
             currentPasteRoute = nil
+            appState.destinationLabel = nil
             inputSourceManager.restorePreviousInputSource()
             activatePreviousFrontmostApp()
             showRecoveryNotice(appState.drafts.startFailureMessage)

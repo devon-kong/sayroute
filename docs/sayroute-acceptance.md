@@ -1,5 +1,11 @@
 # SayRoute 1.4.0 acceptance / 验收状态
 
+## SayRoute 1.4.0 release
+
+The release pairs controller build 26 with Bridge build 20. On the build 25 controller, two live UU sessions exposed distinct local endpoints. A window with its name in the seventh accessibility child retained its identity across a fullscreen transition and resolved to its registered port. The controller recorded four validated Bridge acknowledgements during subsequent use. Editor-side insertion for those individual requests was not independently observed.
+
+## Historical build 21 migration
+
 Candidate: controller build21, bridge build20. This document records the rebrand's evidence separately from earlier Doubao Murmur acceptance.
 
 | Gate | Status | Evidence / next action |
@@ -14,7 +20,7 @@ Candidate: controller build21, bridge build20. This document records the rebrand
 | UU fast actual dictation | PASS (operator-reported, 2026-10-27) | User confirmed no issues in response to the question covering fast dictation and Delete/Space/A plus both Command keys |
 | Disconnection/failure UI | Pending | Confirm recoverable text, unknown receipt warning and no automatic retry |
 | Source acceptance | PASS (operator-reported, 2026-10-27) | User reconfirmed testing with no issues and authorized primary-branch delivery and remote push |
-| Stable release | Not published | The published download is v1.4.0-rc.1; stable release publication is separate from this source cleanup |
+| Published at this stage | v1.4.0-rc.1 | Prerelease of controller build 21 |
 
 ## Real-input acceptance checklist
 
@@ -31,7 +37,7 @@ Do not mark a route passed based on construction tests, HTTP ACK, `eventPosted`,
 
 ## Automated evidence location
 
-The active checkout retains only current candidate packages and their provenance; superseded build logs, extracted verification copies and old package inventories were removed during workspace cleanup. The local `dist/validation/bridge-health-result.json` and `bridge-health.log` retain the isolated bridge health evidence for build20. Their Accessibility result belongs to that temporary local process and does not establish permission on the controlled Mac. The installation/rollback record linked below is retained because it still applies to the current installation.
+The release workflow publishes the controller and Bridge packages with checksums. The local `dist/validation/bridge-health-result.json` retains the isolated bridge health evidence for build20. Their Accessibility result belongs to that temporary local process and does not establish permission on the controlled Mac. The installation/rollback record linked below is retained because it still applies to the current installation.
 
 Independent review identified a stale failed-install backup rollback defect. A failing regression reproduced it; transaction generation/consumption checks fixed it. Six installer scenarios passed, and read-only re-review closed the finding. Real dictation acceptance was initially deferred until after receiving candidate packages; the operator subsequently confirmed the normal flows on 2026-10-27, as recorded below.
 

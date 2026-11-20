@@ -135,6 +135,42 @@ final class DiskHistoryTests: XCTestCase {
         XCTAssertNil(store.readText(id: id))
         XCTAssertFalse(store.begin(id: UUID(), route: .local))
     }
+
+    func testDelayedTargetIsRecordedOnItsOwnHistoryEntryAcrossDeliveryStates() throws {
+        let store = try store()
+        let a = try target(id: "a", alias: "书房")
+        let b = try target(id: "b", alias: "书房")
+        let first = failed(store), second = UUID(), third = UUID(), local = UUID()
+        XCTAssertTrue(store.begin(id: second, route: .uuDirect))
+        XCTAssertTrue(store.markAwaitingDelivery(id: second, text: "另一次听写"))
+        store.recordTarget(b, for: second)
+        store.recordTarget(a, for: first)
+        store.recordTarget(b, for: first)
+        store.finish(id: second, outcome: .eventPosted)
+        XCTAssertTrue(store.begin(id: third, route: .uuDirect))
+        XCTAssertTrue(store.markAwaitingDelivery(id: third, text: "结果未知"))
+        store.finish(id: third, outcome: .unknown(.transportUnknown))
+        XCTAssertTrue(store.begin(id: local, route: .local))
+        store.recordTarget(b, for: local)
+        let entries = store.entries
+        XCTAssertEqual(entries.map(\.destinationID), [.uuDevice("a"), .uuDevice("b"), .unconfirmedUU, .local])
+        XCTAssertEqual(entries[0].destinationLabel(among: entries), "UU 快速模式 · 书房（a）")
+        XCTAssertEqual(entries[1].destinationLabel(among: entries), "UU 快速模式 · 书房（b）")
+        XCTAssertEqual(entries[2].destinationLabel, "UU 快速模式 · 目标未确认")
+        XCTAssertEqual(entries[3].destinationLabel, "本机")
+        store.recordTarget(a, for: third)
+        XCTAssertEqual(store.entries[2].device, entries[0].device)
+        store.discard(id: first)
+        store.recordTarget(a, for: first)
+        XCTAssertFalse(store.entries.contains { $0.id == first })
+    }
+
+    private func target(id: String, alias: String) throws -> UUTarget {
+        let connection = UUConnection(deviceId: id, deviceName: id, platform: "mac",
+                                      connectionState: "connected", isControlling: true, connectionStartTime: "now")
+        return try UUTarget.resolve(labels: [id], connections: [connection],
+                                    bindings: [UUBinding(deviceId: id, name: id, port: 17771, alias: alias)])
+    }
     func testWindowCloseReleasesTextAndLateLoadCannotRestoreIt() throws {
         let store = try store(), id = failed(store)
         let presentation = RecoveryTextPresentation()

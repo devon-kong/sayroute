@@ -12,6 +12,9 @@ struct OverlayView: View {
             RecordingDot(state: appState.recordingState)
 
             VStack(alignment: .leading, spacing: 3) {
+                if let destination = appState.destinationLabel {
+                    Text(destination).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                }
                 IMETextView(text: $appState.transcriptionText, client: textView, onTextViewReady: onTextViewReady)
                 if let error = appState.errorMessage {
                     Text(error).font(.caption).foregroundColor(.orange)
